@@ -25,135 +25,109 @@ class CodeGenerator(ast.NodeVisitor):
 
 
 
-    def visit_Module(self, tree, extraInfo = None):
+    def visit_Module(self, tree):
         for stmt in tree.body:
             self.visit(stmt)
 
     # stmt
-    def visit_Expr(self, tree, extraInfo = None):
+    def visit_Expr(self, tree):
         self.output.fill()
         self.visit(tree.value)
 
 
-    def visit_Import(self, t, extraInfo = None):
+    def visit_Import(self, t):
         for name in t.names:
             self.includes.add(name)
 
 
-    def visit_ImportFrom(self, t, extraInfo = None):
-        # A from __future__ import may affect unparsing, so record it.
-        if t.module and t.module == '__future__':
-            self.future_imports.extend(n.name for n in t.names)
-
-        self.output.fill("from ")
-        self.output.write("." * t.level)
+    def visit_ImportFrom(self, t):
+        module = '/'
         if t.module:
-            self.output.write(t.module)
-        self.output.write(" import ")
-        ##interoutput.leave(lambda: self.output.write(", "), self.visit, t.names)
+            module += t.module
+        for name in t.names:
+            self.includes.add('.' * t.level + t.module + '/' + name)
 
-    def visit_Assign(self, t, extraInfo = None):
+
+    def visit_Assign(self, t):
         self.output.fill()
         self.output.write("auto ")
         for target in t.targets:
-            if extraInfo != None:
-                extraInfo.append((target.id, t.value))
             self.visit(target)
             self.output.write(" = ")
         self.visit(t.value)
         self.output.write(";")
 
-    def visit_AugAssign(self, t, extraInfo = None):
+
+    def visit_AugAssign(self, t):
         self.output.fill()
         self.visit(t.target)
-        self.output.write(" "+self.binop[t.op.__class__.__name__]+"= ")
+        self.output.write(" " + self.binop[t.op.__class__.__name__] + "= ")
         self.visit(t.value)
 
-    def visit_Return(self, t, extraInfo = None):
+
+    def visit_Return(self, t):
         self.output.fill("return")
         if t.value:
             self.output.write(" ")
             self.visit(t.value)
         self.output.write(";")
 
-    def visit_Pass(self, t, extraInfo = None):
-        #self.output.fill("pass")
-        pass
 
-    def visit_Break(self, t, extraInfo = None):
+    def visit_Pass(self, t):
+        self.output.fill(";")
+
+
+    def visit_Break(self, t):
         self.output.fill("break")
         self.output.write(";")
 
-    def visit_Continue(self, t, extraInfo = None):
+
+    def visit_Continue(self, t):
         self.output.fill("continue")
         self.output.write(";")
 
+
     # TODO
-    def visit_Delete(self, t, extraInfo = None):
-        self.output.fill("del ")
+    def visit_Delete(self, t):
+        self.output.fill("delete ")
         ##interoutput.leave(lambda: self.output.write(", "), self.visit, t.targets)
 
-    # TODO
-    def visit_Assert(self, t, extraInfo = None):
-        self.output.fill("assert ")
+
+    def visit_Assert(self, t):
+        self.includes.add("cassert")
+        self.output.fill("assert(")
         self.visit(t.test)
-        if t.msg:
-            self.output.write(", ")
-            self.visit(t.msg)
+        #if t.msg:
+        #    self.output.write(", ")
+        #    self.visit(t.msg)
+        self.output.write(");")
 
-    # TODO
-    def visit_Exec(self, t, extraInfo = None):
-        self.output.fill("exec ")
-        self.visit(t.body)
-        if t.globals:
-            self.output.write(" in ")
-            self.visit(t.globals)
-        if t.locals:
-            self.output.write(", ")
-            self.visit(t.locals)
 
-    # TODO
-    def visit_Print(self, t, extraInfo = None):
-        self.includes.add("iostream")
-        self.output.fill("std::cout ")
-        do_comma = True
-        for e in t.values:
-            if do_comma:self.output.write(" << ")
-            else:do_comma=True
-            self.visit(e)
-        if not t.nl:
-            self.output.write(",")
-        self.output.write(" << std::endl;")
-
-    def visit_Global(self, t, extraInfo = None):
-        #self.output.fill("global ")
+    def visit_Global(self, t):
         self.output.fill("extern ")
-        ##interoutput.leave(lambda: self.output.write(", "), self.output.write, t.names)
+        for name in t.names:
+            self.output.write(", ")
+            self.output.write(name)
         self.output.write(";")
 
-    # TODO
-    def visit_Yield(self, t, extraInfo = None):
-        self.output.write("(")
-        self.output.write("yield")
-        if t.value:
-            self.output.write(" ")
-            self.visit(t.value)
-        self.output.write(")")
 
     # TODO
-    def visit_Raise(self, t, extraInfo = None):
-        self.output.fill('raise ')
-        if t.type:
-            self.visit(t.type)
-        if t.inst:
-            self.output.write(", ")
-            self.visit(t.inst)
-        if t.tback:
-            self.output.write(", ")
-            self.visit(t.tback)
+    def visit_Yield(self, t):
+        pass
+        #self.output.write("(")
+        #self.output.write("yield")
+        #if t.value:
+        #    self.output.write(" ")
+        #    self.visit(t.value)
+        #self.output.write(")")
 
-    # TODO
-    def visit_TryExcept(self, t, extraInfo = None):
+
+    def visit_Raise(self, t):
+        if t.exc:
+            self.output.fill('throw ' + t.exc)
+
+
+    def visit_TryExcept(self, t):
         self.output.fill("try")
         self.output.enter()
         self.visit(t.body)
@@ -161,14 +135,15 @@ class CodeGenerator(ast.NodeVisitor):
 
         for ex in t.handlers:
             self.visit(ex)
-        if t.orelse:
-            self.output.fill("else")
-            self.output.enter()
-            self.visit(t.orelse)
-            self.output.leave()
+        #if t.orelse:
+        #    self.output.fill("else")
+        #    self.output.enter()
+        #    self.visit(t.orelse)
+        #    self.output.leave()
+
 
     # TODO
-    def visit_TryFinally(self, t, extraInfo = None):
+    def visit_TryFinally(self, t):
         if len(t.body) == 1 and isinstance(t.body[0], ast.TryExcept):
             # try-except-finally
             self.visit(t.body)
@@ -178,20 +153,20 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(t.body)
             self.output.leave()
 
-        self.output.fill("finally")
-        self.output.enter()
         self.visit(t.finalbody)
-        self.output.leave()
+
 
     # TODO
-    def visit_ExceptHandler(self, t, extraInfo = None):
-        self.output.fill("except")
-        if t.type:
+    def visit_ExceptHandler(self, t):
+        self.output.fill("catch (")
+        if not (t.type and t.name):
+            self.output.write("...)")
+        else:
             self.output.write(" ")
             self.visit(t.type)
-        if t.name:
-            self.output.write(" as ")
+            self.output.write(" ")
             self.visit(t.name)
+            self.output.write(")")
         self.output.enter()
         self.visit(t.body)
         self.output.leave()
@@ -205,7 +180,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.functionWriter.visit(t)
 
 
-    def visit_For(self, t, extraInfo = None):
+    def visit_For(self, t):
         self.output.fill("for (")
         self.visit(t.target)
         self.output.write(" : ")
@@ -221,7 +196,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(t.orelse)
             self.output.leave()
 
-    def visit_If(self, t, extraInfo = None):
+    def visit_If(self, t):
         self.output.fill("if (")
         self.visit(t.test)
         self.output.enter()
@@ -245,7 +220,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(t.orelse)
             self.output.leave()
 
-    def visit_While(self, t, extraInfo = None):
+    def visit_While(self, t):
         self.output.fill("while (")
         self.visit(t.test)
         setlf.output.write(")")
@@ -259,7 +234,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.leave()
 
     # TODO
-    def visit_With(self, t, extraInfo = None):
+    def visit_With(self, t):
         #self.output.fill("with ")
         #self.visit(t.context_expr)
         #if t.optional_vars:
@@ -271,7 +246,7 @@ class CodeGenerator(ast.NodeVisitor):
         pass
 
     # expr
-    def visit_Str(self, tree, extraInfo = None):
+    def visit_Str(self, tree):
         # if from __future__ import unicode_literals is in effect,
         # then we want to output string literals using a 'b' prefix
         # and unicode literals with no prefix.
@@ -285,15 +260,15 @@ class CodeGenerator(ast.NodeVisitor):
             assert False, "shouldn't get here"
         self.output.write(";")
 
-    def visit_Name(self, t, extraInfo = None):
+    def visit_Name(self, t):
         self.output.write(t.id)
 
-    def visit_Repr(self, t, extraInfo = None):
+    def visit_Repr(self, t):
         self.output.write("`")
         self.visit(t.value)
         self.output.write("`")
 
-    def visit_Num(self, t, extraInfo = None):
+    def visit_Num(self, t):
         repr_n = repr(t.n)
         # Parenthesize negative numbers, to avoid turning (-1)**2 into -1**2.
         if repr_n.startswith("-"):
@@ -303,14 +278,14 @@ class CodeGenerator(ast.NodeVisitor):
         if repr_n.startswith("-"):
             self.output.write(")")
 
-    def visit_List(self, t, extraInfo = None):
+    def visit_List(self, t):
         self.includes.add("list")
         self.output.write("{")
         ##interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
         self.output.write("}")
 
     # TODO
-    def visit_ListComp(self, t, extraInfo = None):
+    def visit_ListComp(self, t):
         self.includes.add("list")
         self.output.write("[")
         self.visit(t.elt)
@@ -319,7 +294,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("]")
 
     # TODO
-    def visit_GeneratorExp(self, t, extraInfo = None):
+    def visit_GeneratorExp(self, t):
         self.output.write("(")
         self.visit(t.elt)
         for gen in t.generators:
@@ -327,7 +302,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(")")
 
     # TODO
-    def visit_SetComp(self, t, extraInfo = None):
+    def visit_SetComp(self, t):
         self.includes.add("set")
         self.output.write("{")
         self.visit(t.elt)
@@ -336,7 +311,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("}")
 
     # TODO
-    def visit_DictComp(self, t, extraInfo = None):
+    def visit_DictComp(self, t):
         self.includes.add("unordered_map")
         self.output.write("{")
         self.visit(t.key)
@@ -347,7 +322,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("}")
 
     # TODO
-    def visit_comprehension(self, t, extraInfo = None):
+    def visit_comprehension(self, t):
         self.output.write(" for ")
         self.visit(t.target)
         self.output.write(" in ")
@@ -357,7 +332,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(if_clause)
 
     # TERNARY ? TODO : check
-    def visit_IfExp(self, t, extraInfo = None):
+    def visit_IfExp(self, t):
         self.output.write("(")
         self.visit(t.test)
         self.output.write(" ? ")
@@ -367,14 +342,14 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(")")
 
     # TODO
-    def visit_Set(self, t, extraInfo = None):
+    def visit_Set(self, t):
         assert(t.elts) # should be at least one element
         self.output.write("{")
         #interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
         self.output.write("}")
 
     # TODO
-    def visit_Dict(self, t, extraInfo = None):
+    def visit_Dict(self, t):
         self.includes.add("unordered_map")
         self.output.write("{")
         def write_pair(pair):
@@ -387,7 +362,7 @@ class CodeGenerator(ast.NodeVisitor):
         #interoutput.leave(lambda: self.output.write(", "), output.write_pair, zip(t.keys, t.values))
         self.output.write("}")
 
-    def visit_Tuple(self, t, extraInfo = None):
+    def visit_Tuple(self, t):
         self.includes.add("tuple")
         self.output.write("{")
         if len(t.elts) == 1:
@@ -400,7 +375,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("}")
 
     unop = {"Invert":"~", "Not": "not", "UAdd":"+", "USub":"-"}
-    def visit_UnaryOp(self, t, extraInfo = None):
+    def visit_UnaryOp(self, t):
         self.output.write("(")
         self.output.write(self.unop[t.op.__class__.__name__])
         self.output.write(" ")
@@ -420,7 +395,7 @@ class CodeGenerator(ast.NodeVisitor):
     binop = { "Add":"+", "Sub":"-", "Mult":"*", "Div":"/", "Mod":"%",
                     "LShift":"<<", "RShift":">>", "BitOr":"|", "BitXor":"^", "BitAnd":"&",
                     "FloorDiv":"//", "Pow": "**"}
-    def visit_BinOp(self, t, extraInfo = None):
+    def visit_BinOp(self, t):
         self.output.write("(")
         self.visit(t.left)
         self.output.write(" " + self.binop[t.op.__class__.__name__] + " ")
@@ -429,7 +404,7 @@ class CodeGenerator(ast.NodeVisitor):
 
     cmpops = {"Eq":"==", "NotEq":"!=", "Lt":"<", "LtE":"<=", "Gt":">", "GtE":">=",
                         "Is":"is", "IsNot":"is not", "In":"in", "NotIn":"not in"}
-    def visit_Compare(self, t, extraInfo = None):
+    def visit_Compare(self, t):
         self.output.write("(")
         self.visit(t.left)
         for o, e in zip(t.ops, t.comparators):
@@ -438,13 +413,13 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(")")
 
     boolops = {ast.And: '&&', ast.Or: '||'}
-    def visit_BoolOp(self, t, extraInfo = None):
+    def visit_BoolOp(self, t):
         self.output.write("(")
         s = " %s " % self.boolops[t.op.__class__]
         #interoutput.leave(lambda: self.output.write(s), self.visit, t.values)
         self.output.write(")")
 
-    def visit_Attribute(self,t, extraInfo = None):
+    def visit_Attribute(self,t):
         self.visit(t.value)
         # Special case: 3.__abs__() is a syntax error, so if t.value
         # is an integer literal then we need to either parenthesize
@@ -455,7 +430,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(t.attr)
 
     # TODO
-    def visit_Call(self, t, extraInfo = None):
+    def visit_Call(self, t):
         self.visit(t.func)
         self.output.write("(")
         comma = False
@@ -487,13 +462,13 @@ class CodeGenerator(ast.NodeVisitor):
 
     # TODO
     # slice
-    def visit_Ellipsis(self, t, extraInfo = None):
+    def visit_Ellipsis(self, t):
         self.output.write("...")
 
-    def visit_Index(self, t, extraInfo = None):
+    def visit_Index(self, t):
         self.visit(t.value)
 
-    def visit_Slice(self, t, extraInfo = None):
+    def visit_Slice(self, t):
         if t.lower:
             self.visit(t.lower)
         self.output.write(":")
@@ -504,12 +479,12 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(t.step)
 
     # TODO
-    def visit_ExtSlice(self, t, extraInfo = None):
+    def visit_ExtSlice(self, t):
         #interoutput.leave(lambda: self.output.write(', '), self.visit, t.dims)
         pass
 
     # others
-    def visit_arguments(self, t, extraInfo = None):
+    def visit_arguments(self, t):
         first = True
         count = 0
         # normal arguments
@@ -542,12 +517,12 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.write("**"+t.kwarg)
 
     # TODO
-    def visit_keyword(self, t, extraInfo = None):
+    def visit_keyword(self, t):
         self.output.write(t.arg)
         self.output.write("=")
         self.visit(t.value)
 
-    def visit_Lambda(self, t, extraInfo = None):
+    def visit_Lambda(self, t):
         self.output.write("[](")
         self.visit(t.args)
         self.output.write(") {")
@@ -555,7 +530,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("}")
 
     # TODO
-    def visit_alias(self, t, extraInfo = None):
+    def visit_alias(self, t):
         self.output.write(t.name)
         if t.asname:
             self.output.write(" as "+t.asname)
