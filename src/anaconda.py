@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import visitor
+from codeGenerator import CodeGenerator
+from codeFormatter import CodeFormatter
 
 import sys
 import ast
-import io
 
 def parse(filename, output = sys.stdout):
     """
@@ -17,22 +17,19 @@ def parse(filename, output = sys.stdout):
     with open(filename, "r") as pyfile:
         source = pyfile.read()
 
-    buffer = io.StringIO()
 
     # Build the abstract syntax tree
     tree = compile(source, filename, "exec", ast.PyCF_ONLY_AST)
 
-    visitor.visit(tree)
+    formatter = CodeFormatter(output)
+    generator = CodeGenerator(formatter)
+    generator.visit(tree)
 
     ###  Refactor and output C++ into buffer ###
     #unparser = Unparser(tree, buffer)
 
 
-    # Write mandatory includes
-    #for include in unparser.includes:
-    #    output.write("#include <%s>\n" % include)
-
-    output.write(buffer.getvalue())
+    formatter.flush()
 
 
 
