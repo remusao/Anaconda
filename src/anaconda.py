@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import visitor
+
+import sys
+import ast
+import io
 
 def parse(filename, output = sys.stdout):
     """
@@ -12,18 +17,20 @@ def parse(filename, output = sys.stdout):
     with open(filename, "r") as pyfile:
         source = pyfile.read()
 
-    buffer = cStringIO.StringIO()
+    buffer = io.StringIO()
 
     # Build the abstract syntax tree
     tree = compile(source, filename, "exec", ast.PyCF_ONLY_AST)
 
+    visitor.visit(tree)
+
     ###  Refactor and output C++ into buffer ###
-    unparser = Unparser(tree, buffer)
+    #unparser = Unparser(tree, buffer)
 
 
     # Write mandatory includes
-    for include in unparser.includes:
-        output.write("#include <%s>\n" % include)
+    #for include in unparser.includes:
+    #    output.write("#include <%s>\n" % include)
 
     output.write(buffer.getvalue())
 
@@ -36,7 +43,7 @@ def parse(filename, output = sys.stdout):
 
 def main(args):
     for f in args:
-        parser.parse(file)
+        parse(f)
 
 if __name__=='__main__':
     main(sys.argv[1:])
