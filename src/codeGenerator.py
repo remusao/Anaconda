@@ -54,6 +54,16 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.pushBuffer(tmp)
 
 
+    def interLeave(self, output, visit, l):
+        if len(l) > 1:
+            visit(l[0])
+            for val in l[1:]:
+                output()
+                visit(val)
+        elif len(l):
+            visit(l[0])
+
+
     def scopeOpener(self, node):
         """
         Makes sure that nothing could be written outside of any class
@@ -73,8 +83,8 @@ class CodeGenerator(ast.NodeVisitor):
         self.variablesInScope.append(set(self.variablesInScope[-1]))
 
 
-    def leaveScope(self, node = None):
-        self.output.leave()
+    def leaveScope(self, node = None, suffix = "\n"):
+        self.output.leave(suffix)
         if node and node.__class__.__name__ in ["Module", "ClassDef", "FunctionDef"]:
             self.scope -= 1
         del self.variablesInScope[-1]
@@ -93,7 +103,7 @@ class CodeGenerator(ast.NodeVisitor):
     }
     unaryop = {
         "Invert" : "~",
-        "Not" : "not",
+        "Not" : "!",
         "UAdd" : "+",
         "USub" : "-"
     }
@@ -145,7 +155,7 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_Expression(self, tree):
         self.visit(tree.body)
 
-    
+
     def visit_Suite(self, tree):
         self.visit(tree.body)
 
@@ -171,16 +181,15 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(";")
 
 
-    # TODO
     def visit_Delete(self, t):
         self.output.fill("delete ")
-        self.visit(t.targets)
+        self.interLeave((lambda: self.output.write(", ")), self.visit, t.targets)
         self.output.write(";")
 
 
     def visit_Assign(self, t):
-        self.output.fill()
         for target in t.targets:
+            self.output.fill()
             if isinstance(target, ast.Name):
                 if target.id not in self.variablesInScope[-1]:
                     self.variablesInScope[-1].add(target.id)
@@ -194,13 +203,13 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_AugAssign(self, t):
         self.output.fill()
         self.visit(t.target)
-        self.output.write(" " + self.binop[t.op.__class__.__name__] + "= ")
+        self.output.write(" %s= " % (self.binop[t.op.__class__.__name__]))
         self.visit(t.value)
         self.output.write(";")
 
 
     def visit_For(self, t):
-        self.output.fill("for (")
+        self.output.fill("for (auto ")
         self.visit(t.target)
         self.output.write(" : ")
         self.visit(t.iter)
@@ -240,6 +249,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.body)
         self.leaveScope()
 
+        # TODO
         # collapse nested ifs into equivalent elifs.
         while (t.orelse and len(t.orelse) == 1 and
                isinstance(t.orelse[0], ast.If)):
@@ -279,6 +289,7 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_Try(self, t):
         self.output.fill("try")
+
         self.enterScope()
         self.visit(t.body)
         self.leaveScope()
@@ -296,27 +307,29 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(");")
 
 
+    # TODO : check if it's standard lib or a file in the project
     def visit_Import(self, t):
         for name in t.names:
-            self.includes.add(name)
+            self.includes.add(name.name)
 
 
+    # TODO : check if it's standard lib or a file in the project
     def visit_ImportFrom(self, t):
         module = '/'
         if t.module:
             module += t.module
-        for name in t.names:
-            self.includes.add('.' * t.level + t.module + '/' + name)
+        self.includes.add("%s%s" % ('.' * t.level, t.module))
+        #for name in t.names:
+        #    self.includes.add("%s%s/%s" % ('.' * t.level, t.module, name.name))
 
 
     def visit_Global(self, t):
         self.output.fill("extern ")
-        for name in t.names:
-            self.output.write(", ")
-            self.output.write(name)
+        self.interLeave(lambda: self.output.write(", "), self.visit, t.names)
         self.output.write(";")
 
 
+    # TODO
     def visit_Nonlocal(self, tree):
         self.visit(tree.names)
 
@@ -348,42 +361,37 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_BoolOp(self, t):
         s = " %s " % self.boolop[t.op.__class__]
-        #interoutput.leave(lambda: self.output.write(s), self.visit, t.values)
+        self.interLeave(lambda: self.output.write(s), self.visit, t.values)
 
 
     def visit_BinOp(self, t):
         self.visit(t.left)
-        self.output.write(" " + self.binop[t.op.__class__.__name__] + " ")
+        self.output.write(" %s " % (self.binop[t.op.__class__.__name__]))
         self.visit(t.right)
 
 
     def visit_UnaryOp(self, t):
-        self.output.write(self.unaryop[t.op.__class__.__name__])
-        self.output.write(" ")
-        # If we're applying unary minus to a number, parenthesize the number.
-        # This is necessary: -2147483648 is different from -(2147483648) on
-        # a 32-bit machine (the first is an int, the second a long), and
-        # -7j is different from -(7j).  (The first has real part 0.0, the second
-        # has real part -0.0.)
-        if isinstance(t.op, ast.USub) and isinstance(t.operand, ast.Num):
+        parenthesize = isinstance(t.op, ast.USub) and isinstance(t.operand, ast.Num)
+        if parenthesize:
             self.output.write("(")
-            self.visit(t.operand)
+        self.output.write(self.unaryop[t.op.__class__.__name__])
+        self.visit(t.operand)
+        if parenthesize:
             self.output.write(")")
-        else:
-            self.visit(t.operand)
 
 
+    # TODO : what if lambda doesn't return anything ?
     def visit_Lambda(self, t):
-        self.output.write("[](")
+        self.output.write("[&](")
         self.visit(t.args)
         self.output.write(")")
 
         self.enterScope()
+        self.output.fill()
         self.visit(t.body)
-        self.leaveScope()
+        self.leaveScope(None, "")
 
 
-    # TERNARY ? TODO : check
     def visit_IfExp(self, t):
         self.output.write("(")
         self.visit(t.test)
@@ -394,36 +402,61 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(")")
 
 
-    # TODO
+    # TODO : Handle empty dic
     def visit_Dict(self, t):
         self.includes.add("unordered_map")
-        self.output.write("{")
+
+        # Find type of the keys
+        self.output.stackBuffer()
+        self.visit(t.values[0])
+        type1 = self.output.topPop().getvalue()
+
+        # Find type of the values
+        self.output.stackBuffer()
+        self.visit(t.keys[0])
+        type2 = self.output.topPop().getvalue()
+
+        # declare the type
+        self.output.write("std::unordered_map<decltype (%s), decltype (%s)>"
+                         % (type1, type2))
+        self.enterScope()
         def write_pair(pair):
             (k, v) = pair
+            self.output.fill()
             self.output.write("{")
             self.visit(k)
             self.output.write(", ")
             self.visit(v)
             self.output.write("}")
-        #interoutput.leave(lambda: self.output.write(", "), output.write_pair, zip(t.keys, t.values))
-        self.output.write("}")
+        self.interLeave(lambda: self.output.write(", "), write_pair,
+                        list(zip(t.keys, t.values)))
+        self.leaveScope(None, "")
 
 
-    # TODO
     def visit_Set(self, t):
+        self.includes.add("set")
         assert(t.elts) # should be at least one element
-        self.output.write("{")
-        #interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
-        self.output.write("}")
+
+        # Find type of the keys
+        self.output.stackBuffer()
+        self.visit(t.elts[0])
+        type = self.output.topPop().getvalue()
+
+        self.output.write("std::set<decltype (%s)>" % (type))
+        self.enterScope()
+        self.output.fill()
+        self.interLeave(lambda: self.output.write(", "), self.visit, t.elts)
+        self.leaveScope(None, "")
 
 
-    # TODO
     def visit_ListComp(self, t):
-        self.includes.add("list")
-        self.output.write("[")
-        self.visit(t.elt)
+        self.includes.add("vector")
+        self.includes.add("linq.h")
+        self.output.write("LINQ(")
         self.visit(t.generators)
-        self.output.write("]")
+        self.output.write(" select(")
+        self.visit(t.elt)
+        self.output.write("))")
 
 
     # TODO
@@ -446,7 +479,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write("}")
 
 
-    # TODO
+    # TODO : use coroutine
     def visit_GeneratorExp(self, t):
         self.output.write("(")
         self.visit(t.elt)
@@ -454,7 +487,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(")")
 
 
-    # TODO
+    # TODO : use coroutine
     def visit_Yield(self, t):
         pass
         #self.output.write("(")
@@ -465,6 +498,7 @@ class CodeGenerator(ast.NodeVisitor):
         #self.output.write(")")
 
 
+    # TODO : use coroutine
     def visit_YieldFrom(self, tree):
         self.visit(tree.value)
 
@@ -516,19 +550,19 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_Str(self, tree):
         if isinstance(tree.s, str):
-            self.output.write("b" + repr(tree.s))
+            self.output.write('"%s"' % (tree.s))
         elif isinstance(tree.s, unicode):
             self.output.write(repr(tree.s).lstrip("u"))
         else:
             assert False, "shouldn't get here"
-        self.output.write(";")
 
 
     def visit_Bytes(self, tree):
         # tree.s
-        pass
+        self.output.write(tree.s)
 
 
+    # TODO
     # slice
     def visit_Ellipsis(self, t):
         self.output.write("...")
@@ -539,7 +573,7 @@ class CodeGenerator(ast.NodeVisitor):
     #############
 
 
-    def visit_Attribute(self,t):
+    def visit_Attribute(self, t):
         self.visit(t.value)
         # Special case: 3.__abs__() is a syntax error, so if t.value
         # is an integer literal then we need to either parenthesize
@@ -572,25 +606,29 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_List(self, t):
-        self.includes.add("list")
-        self.output.write("{")
-        ##interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
-        self.output.write("}")
+        self.includes.add("vector")
+
+        # Find type of the elements
+        self.output.stackBuffer()
+        self.visit(t.elts[0])
+        type = self.output.topPop().getvalue()
+
+        self.output.write("std::vector<decltype (%s)>" % (type))
+        self.enterScope()
+        self.output.fill()
+        self.interLeave(lambda: self.output.write(", "), self.visit, t.elts)
+        self.leaveScope(None, "")
 
 
     def visit_Tuple(self, t):
         self.includes.add("tuple")
-        self.output.write("{")
-        if len(t.elts) == 1:
-            (elt,) = t.elts
-            self.visit(elt)
-            self.output.write(",")
-        else:
-            pass
-            #interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
-        self.output.write("}")
+
+        self.output.write("std::make_tuple(")
+        self.interLeave(lambda: self.output.write(", "), self.visit, t.elts)
+        self.output.write(")")
 
 
+    # TODO
     def visit_Slice(self, t):
         if t.lower:
             self.visit(t.lower)
@@ -629,15 +667,16 @@ class CodeGenerator(ast.NodeVisitor):
         self.leaveScope()
 
 
-    # TODO
     def visit_comprehension(self, t):
-        self.output.write(" for ")
+        self.output.write("from(")
         self.visit(t.target)
-        self.output.write(" in ")
+        self.output.write(", ")
         self.visit(t.iter)
+        self.output.write(")")
         for if_clause in t.ifs:
-            self.output.write(" if ")
+            self.output.write(" where(")
             self.visit(if_clause)
+            self.output.write(")")
 
 
     # TODO

@@ -62,10 +62,10 @@ class outputManager():
         self.topBuffer().write("\n%s{" % ("    " * self._indent))
         self._indent += 1
 
-    def leave(self):
+    def leave(self, suffix):
         "Decrease the indentation level."
         self._indent -= 1
-        self.topBuffer().write("\n%s}\n" % ("    " * self._indent))
+        self.topBuffer().write("\n%s}%s" % ("    " * self._indent, suffix))
 
 
 

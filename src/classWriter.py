@@ -46,7 +46,7 @@ class ClassWriter(NodeVisitor):
         for stmt in t.body:
             self.codeGenerator.visit(stmt, self)
 
-        self.codeGenerator.leaveScope(t)
+        self.codeGenerator.leaveScope(t, "")
         self.codeGenerator.output.write(";")
 
         self.codeGenerator.output.flushLastInFile(t.name + ".h")
