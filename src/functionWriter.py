@@ -95,6 +95,7 @@ class FunctionWriter(NodeVisitor):
         #for decorator in t.decorator_list:
         #    print(decorator)
 
+        self.codeGenerator.output.fill()
         nbArgs = len(t.args.args)
         if nbArgs > 0:
             self.codeGenerator.output.write("template <")

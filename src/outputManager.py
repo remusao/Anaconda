@@ -21,6 +21,10 @@ class outputManager():
         self.f.append(StringIO())
 
 
+    def pushBuffer(self, buffer):
+        self.f.append(buffer)
+
+
     def topPop(self):
         tmp = self.topBuffer()
         self.popBuffer()

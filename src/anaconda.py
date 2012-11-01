@@ -24,6 +24,7 @@ def parse(filename):
 
     generator = CodeGenerator(formatter)
     generator.visit(tree)
+    generator.printIncludes()
 
     formatter.flush()
 

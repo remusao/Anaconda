@@ -24,27 +24,79 @@ class CodeGenerator(ast.NodeVisitor):
         self.functionWriter = FunctionWriter(self)
 
 
-    def visit(self, node):
+    def visit(self, node, target = None):
+        if not target:
+            target = self
         if isinstance(node, list):
             for n in node:
-                self.visit(n)
+                self.visit(n, target)
         else:
-            getattr(self, "visit_%s" % (node.__class__.__name__))(node)
+            # Try to find the method in target. If the method doesn't exist, we
+            # try to find the method in CodeGenerator.
+            getattr(target, "visit_%s" % (node.__class__.__name__), self.visit)(node)
+
+
+    def printIncludes(self):
+        self.output.stackBuffer()
+        for include in self.includes:
+            self.output.write("#include ")
+            if include.find(".h") != -1:
+                self.output.write("\"%s\"\n" % (include))
+            else:
+                self.output.write("<%s>\n" % (include))
+
+        tmp = self.output.topPop()
+        tmp.write(self.output.topPop().getvalue())
+        self.output.pushBuffer(tmp)
 
     #
     # Dict
     #
-    expr_context = { "Load" : "", "Store" : "", "Del" : "", "AugLoad" : "",
-                    "AugStore" : "", "Param" : ""}
-    unaryop = {"Invert":"~", "Not": "not", "UAdd":"+", "USub":"-"}
-    binop = { "Add" : "+", "Sub" : "-", "Mult" : "*", "Div":"/", "Mod":"%",
-                    "LShift":"<<", "RShift":">>", "BitOr":"|", "BitXor":"^", "BitAnd":"&",
-                    "FloorDiv":"//", "Pow": "**"}
+    expr_context = {
+        "Load" : "",
+        "Store" : "",
+        "Del" : "",
+        "AugLoad" : "",
+        "AugStore" : "",
+        "Param" : ""
+    }
+    unaryop = {
+        "Invert" : "~",
+        "Not" : "not",
+        "UAdd" : "+",
+        "USub" : "-"
+    }
+    binop = {
+        "Add" : "+",
+        "Sub" : "-",
+        "Mult" : "*",
+        "Div" : "/",
+        "Mod" : "%",
+        "LShift" : "<<",
+        "RShift" : ">>",
+        "BitOr" : "|",
+        "BitXor" : "^",
+        "BitAnd" : "&",
+        "FloorDiv" : "//",
+        "Pow" : "**"
+    }
+    boolop = {
+        ast.And : '&&',
+        ast.Or : '||'
+    }
+    cmpops = {
+        "Eq" : "==",
+        "NotEq" : "!=",
+        "Lt" : "<",
+        "LtE" : "<=",
+        "Gt" : ">",
+        "GtE" : ">=",
+        "Is" : "==",
+        "IsNot" : "!=",
+        "In" : "in",
+        "NotIn" : "not in"
+    }
 
-    boolop = {ast.And: '&&', ast.Or: '||'}
-
-    cmpops = {"Eq":"==", "NotEq":"!=", "Lt":"<", "LtE":"<=", "Gt":">", "GtE":">=",
-                        "Is":"is", "IsNot":"is not", "In":"in", "NotIn":"not in"}
 
     #           #
     #    MOD    #
@@ -110,6 +162,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.target)
         self.output.write(" " + self.binop[t.op.__class__.__name__] + "= ")
         self.visit(t.value)
+        self.output.write(";")
 
 
     def visit_For(self, t):
@@ -132,9 +185,11 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.fill("while (")
         self.visit(t.test)
         self.output.write(")")
+
         self.output.enter()
         self.visit(t.body)
         self.output.leave()
+
         #if t.orelse:
         #    self.output.fill("else")
         #    self.output.enter()
@@ -146,6 +201,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.fill("if (")
         self.visit(t.test)
         self.output.write(")")
+
         self.output.enter()
         self.visit(t.body)
         self.output.leave()
@@ -232,7 +288,6 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_Expr(self, tree):
-        self.output.fill()
         self.visit(tree.value)
 
 
@@ -258,22 +313,17 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_BoolOp(self, t):
-        self.output.write("(")
         s = " %s " % self.boolop[t.op.__class__]
         #interoutput.leave(lambda: self.output.write(s), self.visit, t.values)
-        self.output.write(")")
 
 
     def visit_BinOp(self, t):
-        self.output.write("(")
         self.visit(t.left)
         self.output.write(" " + self.binop[t.op.__class__.__name__] + " ")
         self.visit(t.right)
-        self.output.write(")")
 
 
     def visit_UnaryOp(self, t):
-        self.output.write("(")
         self.output.write(self.unaryop[t.op.__class__.__name__])
         self.output.write(" ")
         # If we're applying unary minus to a number, parenthesize the number.
@@ -287,15 +337,16 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.write(")")
         else:
             self.visit(t.operand)
-        self.output.write(")")
 
 
     def visit_Lambda(self, t):
         self.output.write("[](")
         self.visit(t.args)
-        self.output.write(") {")
+        self.output.write(")")
+
+        self.output.enter()
         self.visit(t.body)
-        self.output.write("}")
+        self.output.leave()
 
 
     # TERNARY ? TODO : check
@@ -381,17 +432,14 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_YieldFrom(self, tree):
-        if tree.value:
-            self.visit(tree.value)
+        self.visit(tree.value)
 
 
     def visit_Compare(self, t):
-        self.output.write("(")
         self.visit(t.left)
         for o, e in zip(t.ops, t.comparators):
-            self.output.write(" " + self.cmpops[o.__class__.__name__] + " ")
+            self.output.write(" %s " % (self.cmpops[o.__class__.__name__]))
             self.visit(e)
-        self.output.write(")")
 
 
     # TODO
@@ -417,7 +465,7 @@ class CodeGenerator(ast.NodeVisitor):
             else: comma = True
             self.output.write("**")
             self.visit(t.kwargs)
-        self.output.write(");")
+        self.output.write(")")
 
 
     def visit_Num(self, t):
@@ -480,7 +528,13 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_Name(self, t):
-        self.output.write(t.id)
+        toPrint = t.id
+        if toPrint == "True":
+            toPrint = "true"
+        elif toPrint == "False":
+            toPrint = "false"
+
+        self.output.write(toPrint)
 
 
     def visit_List(self, t):
