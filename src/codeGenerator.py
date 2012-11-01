@@ -29,11 +29,13 @@ class CodeGenerator(ast.NodeVisitor):
             target = self
         if isinstance(node, list):
             for n in node:
-                self.visit(n, target)
+                if self.scopeOpener(n):
+                    self.visit(n, target)
         else:
             # Try to find the method in target. If the method doesn't exist, we
             # try to find the method in CodeGenerator.
-            getattr(target, "visit_%s" % (node.__class__.__name__), self.visit)(node)
+            if self.scopeOpener(node):
+                getattr(target, "visit_%s" % (node.__class__.__name__), self.visit)(node)
 
 
     def printIncludes(self):
@@ -48,6 +50,26 @@ class CodeGenerator(ast.NodeVisitor):
         tmp = self.output.topPop()
         tmp.write(self.output.topPop().getvalue())
         self.output.pushBuffer(tmp)
+
+
+    def scopeOpener(self, node):
+        """
+        Makes sure that nothing could be written outside of any class
+        or function. (indentation at 0)
+        """
+        if self.output._indent > 0:
+            return True
+        else:
+            if node.__class__.__name__ in ["Module", "ClassDef", "FunctionDef"]:
+                return True
+        return False
+
+
+    def enterScope(self):
+        self.output.enter()
+
+    def leaveScope(self):
+        self.output.leave()
 
     #
     # Dict
@@ -171,14 +193,14 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(" : ")
         self.visit(t.iter)
         self.output.write(")")
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
         #if t.orelse:
         #    self.output.fill("else")
-        #    self.output.enter()
+        #    self.enterScope()
         #    self.visit(t.orelse)
-        #    self.output.leave()
+        #    self.leaveScope()
 
 
     def visit_While(self, t):
@@ -186,15 +208,15 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.test)
         self.output.write(")")
 
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
 
         #if t.orelse:
         #    self.output.fill("else")
-        #    self.output.enter()
+        #    self.enterScope()
         #    self.visit(t.orelse)
-        #    self.output.leave()
+        #    self.leaveScope()
 
 
     def visit_If(self, t):
@@ -202,9 +224,9 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.test)
         self.output.write(")")
 
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
 
         # collapse nested ifs into equivalent elifs.
         while (t.orelse and len(t.orelse) == 1 and
@@ -213,16 +235,16 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.fill("else if (")
             self.visit(t.test)
             self.output.write(")")
-            self.output.enter()
+            self.enterScope()
             self.visit(t.body)
-            self.output.leave()
+            self.leaveScope()
             del t.orelse[0]
         # final else
         if t.orelse:
             self.output.fill("else")
-            self.output.enter()
+            self.enterScope()
             self.visit(t.orelse[0])
-            self.output.leave()
+            self.leaveScope()
 
 
     # TODO
@@ -232,9 +254,9 @@ class CodeGenerator(ast.NodeVisitor):
         #if t.optional_vars:
         #    self.output.write(" as ")
         #    self.visit(t.optional_vars)
-        #self.output.enter()
+        #self.enterScope()
         #self.visit(t.body)
-        #self.output.leave()
+        #self.leaveScope()
         pass
 
 
@@ -245,9 +267,9 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_Try(self, t):
         self.output.fill("try")
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
 
         self.visit(t.handlers)
 
@@ -344,9 +366,9 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.args)
         self.output.write(")")
 
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
 
 
     # TERNARY ? TODO : check
@@ -590,9 +612,9 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.write(" ")
             self.visit(t.name)
             self.output.write(")")
-        self.output.enter()
+        self.enterScope()
         self.visit(t.body)
-        self.output.leave()
+        self.leaveScope()
 
 
     # TODO

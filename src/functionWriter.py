@@ -18,6 +18,14 @@ class FunctionWriter(NodeVisitor):
         """  """
         self.codeGenerator.visit(node)
 
+    def outputMain(self, node):
+        self.codeGenerator.output.write("int main(")
+        self.visit(node.args)
+        self.codeGenerator.output.write(")")
+        self.codeGenerator.enterScope()
+        self.visit(node.body)
+        self.codeGenerator.leaveScope()
+
 
     class ReturnTypeFinder(NodeVisitor):
 
@@ -91,6 +99,10 @@ class FunctionWriter(NodeVisitor):
 
     # TODO
     def visit_FunctionDef(self, t):
+
+        if t.name == "main":
+            self.outputMain(t)
+            return
 
         #for decorator in t.decorator_list:
         #    print(decorator)
