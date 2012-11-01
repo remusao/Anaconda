@@ -133,22 +133,26 @@ namespace Builtins
 
 		template <>
 		bool isTrue<int>(const int& obj) { return obj; }
+
 		template <>
 		bool isTrue<long int>(const long int& obj) { return obj; }
+		
 		template <>
 		bool isTrue<long long int>(const long long int& obj) { return obj; }
+		
 		template <>
 		bool isTrue<float>(const float& obj) { return obj; }
+		
 		template <>
 		bool isTrue<double>(const double& obj) { return obj; }
+		
 		template <>
 		bool isTrue<bool>(const bool& obj) { return obj; }
 	};
 
 	template <typename ... Arguments>
-	bool toBool(const Arguments&... args)
+	bool toBool()
 	{
-		static_assert((sizeof...(args)) == 0, "Args should be empty.");
 		return false;
 	}
 
@@ -159,5 +163,46 @@ namespace Builtins
 			"Builtin bool can't take more than 1 argument.");
 
 		return isTrue(obj);
+	}
+
+
+	/////////////////
+	/// bytearray ///
+	/////////////////
+	template <typename ... Arguments>
+	std::vector<unsigned char> bytearray()
+	{
+		return std::vector<unsigned char>();
+	}
+
+	template <typename ... Arguments>
+	std::vector<unsigned char> bytearray(int size, const Arguments&... args)
+	{
+		return std::vector<unsigned char>(size, 0);
+	}
+
+	template <typename ... Arguments>
+	std::vector<unsigned char> bytearray(const char s[], const Arguments&... args)
+	{
+		auto tmp = std::string(s);
+		return std::vector<unsigned char>(tmp.begin(), tmp.end());
+	}
+
+	template <typename ... Arguments>
+	std::vector<unsigned char> bytearray(const std::string& s, const Arguments&... args)
+	{
+		return std::vector<unsigned char>(s.begin(), s.end());
+	}
+
+	template <template <typename, typename> class Container, typename ... Arguments>
+	std::vector<unsigned char> bytearray(const Container<unsigned char, std::allocator<unsigned char>>& c, const Arguments&... args)
+	{
+		return std::vector<unsigned char>(c.begin(), c.end());
+	}
+
+	template <template <typename> class Container, typename ... Arguments>
+	std::vector<unsigned char> bytearray(const Container<unsigned char>& c, const Arguments&... args)
+	{
+		return std::vector<unsigned char>(c.begin(), c.end());
 	}
 };

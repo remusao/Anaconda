@@ -44,6 +44,11 @@ main()
 	vec.clear();
 	assert(Builtins::toBool(vec) == false);
 
-	//
+	// bytearray
+	assert(Builtins::bytearray(42).size() == 42);
+	assert(Builtins::bytearray().size() == 0);
+	assert(Builtins::bytearray("toto").size() == 4);
+	assert(Builtins::bytearray(std::string("toto")).size() == 4);
+	assert(Builtins::bytearray(std::vector<unsigned char>(42, '*')).size() == 42);
 }
 

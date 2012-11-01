@@ -4,8 +4,6 @@
 # include <string>
 # include <vector>
 
-/// Defines types
-typedef std::vector<unsigned char> bytearray_t;
 
 namespace Builtins
 {
@@ -77,7 +75,8 @@ namespace Builtins
 	///  contents of the array.
 	///
 	///	Without an argument, an array of size 0 is created.
-	bytearray_t bytearray()
+	template <typename ... Arguments>
+	std::vector<unsigned char> bytearray(const Arguments&... args);
 /*
 		__import__()
 		bytearray()
