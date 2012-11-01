@@ -157,11 +157,8 @@ namespace Builtins
 	}
 
 	template <typename T, typename ... Arguments>
-	bool toBool(const T& obj, Arguments... args)
+	bool toBool(const T& obj)
 	{
-		static_assert((sizeof...(args)) == 0,
-			"Builtin bool can't take more than 1 argument.");
-
 		return isTrue(obj);
 	}
 
@@ -176,33 +173,44 @@ namespace Builtins
 	}
 
 	template <typename ... Arguments>
-	std::vector<unsigned char> bytearray(int size, const Arguments&... args)
+	std::vector<unsigned char> bytearray(int size)
 	{
 		return std::vector<unsigned char>(size, 0);
 	}
 
 	template <typename ... Arguments>
-	std::vector<unsigned char> bytearray(const char s[], const Arguments&... args)
+	std::vector<unsigned char> bytearray(const char s[])
 	{
 		auto tmp = std::string(s);
 		return std::vector<unsigned char>(tmp.begin(), tmp.end());
 	}
 
 	template <typename ... Arguments>
-	std::vector<unsigned char> bytearray(const std::string& s, const Arguments&... args)
+	std::vector<unsigned char> bytearray(const std::string& s)
 	{
 		return std::vector<unsigned char>(s.begin(), s.end());
 	}
 
 	template <template <typename, typename> class Container, typename ... Arguments>
-	std::vector<unsigned char> bytearray(const Container<unsigned char, std::allocator<unsigned char>>& c, const Arguments&... args)
+	std::vector<unsigned char> bytearray(const Container<unsigned char, std::allocator<unsigned char>>& c)
 	{
 		return std::vector<unsigned char>(c.begin(), c.end());
 	}
 
 	template <template <typename> class Container, typename ... Arguments>
-	std::vector<unsigned char> bytearray(const Container<unsigned char>& c, const Arguments&... args)
+	std::vector<unsigned char> bytearray(const Container<unsigned char>& c)
 	{
 		return std::vector<unsigned char>(c.begin(), c.end());
 	}
+
+
+
+	/////////////////
+	/// bytearray ///
+	/////////////////
+	/*template <typename ... Arguments>
+	const std::vector<unsigned char> bytes()
+	{
+		return std::vector<unsigned char>();
+	}*/
 };

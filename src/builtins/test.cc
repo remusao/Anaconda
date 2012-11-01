@@ -50,5 +50,9 @@ main()
 	assert(Builtins::bytearray("toto").size() == 4);
 	assert(Builtins::bytearray(std::string("toto")).size() == 4);
 	assert(Builtins::bytearray(std::vector<unsigned char>(42, '*')).size() == 42);
+
+	// bytes
+	//auto r = Builtins::bytes();
+	//r.push_back('*');
 }
 

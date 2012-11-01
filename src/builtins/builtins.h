@@ -77,10 +77,20 @@ namespace Builtins
 	///	Without an argument, an array of size 0 is created.
 	template <typename ... Arguments>
 	std::vector<unsigned char> bytearray(const Arguments&... args);
+
+
+	/// @func bytes([source[, encoding[, errors]]])
+	/// @brief Return a new “bytes” object, which is an immutable sequence of
+	/// integers in the range 0 <= x < 256. bytes is an immutable version of
+	/// bytearray – it has the same non-mutating methods and the same indexing and
+	/// slicing behavior.
+	///
+	/// Accordingly, constructor arguments are interpreted as for bytearray().
+	//template <typename ... Arguments>
+	//const std::vector<unsigned char> bytes(const Arguments&... args);
+	// TODO : Implements a const vector
 /*
 		__import__()
-		bytearray()
-		bytes()
 		callable()
 		chr()
 		classmethod()
