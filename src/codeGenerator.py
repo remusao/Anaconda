@@ -18,6 +18,8 @@ class CodeGenerator(ast.NodeVisitor):
             Unparser(tree, file=sys.stdout) -> None.
             Print the source for tree to file.
         """
+        self.scope = 0
+        self.variablesInScope = [set([])]
         self.includes = set([])
         self.output = codeFormatter
         self.classWriter = ClassWriter(self)
@@ -57,19 +59,26 @@ class CodeGenerator(ast.NodeVisitor):
         Makes sure that nothing could be written outside of any class
         or function. (indentation at 0)
         """
-        if self.output._indent > 0:
+        if self.scope > 0:
             return True
         else:
             if node.__class__.__name__ in ["Module", "ClassDef", "FunctionDef"]:
+                self.scope += 1
                 return True
         return False
 
 
     def enterScope(self):
         self.output.enter()
+        self.variablesInScope.append(set(self.variablesInScope[-1]))
 
-    def leaveScope(self):
+
+    def leaveScope(self, node = None):
         self.output.leave()
+        if node and node.__class__.__name__ in ["Module", "ClassDef", "FunctionDef"]:
+            self.scope -= 1
+        del self.variablesInScope[-1]
+
 
     #
     # Dict
@@ -171,12 +180,15 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_Assign(self, t):
         self.output.fill()
-        self.output.write("auto ")
         for target in t.targets:
+            if isinstance(target, ast.Name):
+                if target.id not in self.variablesInScope[-1]:
+                    self.variablesInScope[-1].add(target.id)
+                    self.output.write("auto ")
             self.visit(target)
             self.output.write(" = ")
-        self.visit(t.value)
-        self.output.write(";")
+            self.visit(t.value)
+            self.output.write(";")
 
 
     def visit_AugAssign(self, t):
@@ -630,7 +642,39 @@ class CodeGenerator(ast.NodeVisitor):
 
     # TODO
     def visit_arguments(self, t):
-        self.functionWriter.visit(t)
+        first = True
+        count = 0
+        # normal arguments
+        defaults = [None] * (len(t.args) - len(t.defaults)) + t.defaults
+        for a, d in zip(t.args, defaults):
+            if first:
+                first = False
+            else:
+                self.output.write(", ")
+            self.output.write("Type%i " % (count))
+            self.variablesInScope[-1].add(a.arg)
+            self.visit(a)
+            count += 1
+            if d:
+                self.output.write("=")
+                self.visit(d)
+
+        # TODO
+        # varargs
+        if t.vararg:
+            if first:first = False
+            else: self.output.write(", ")
+            self.output.write("*")
+            self.output.write(t.vararg)
+
+        # TODO
+        # kwargs
+        if t.kwarg:
+            if first:first = False
+            else: self.output.write(", ")
+            self.output.write("**"+t.kwarg)
+
+
 
 
     def visit_arg(self, tree):

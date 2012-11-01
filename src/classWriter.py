@@ -31,7 +31,7 @@ class ClassWriter(NodeVisitor):
         self.codeGenerator.output.write("\n")
 
         self.codeGenerator.output.fill("class " + t.name)
-        self.codeGenerator.output.enter()
+        self.codeGenerator.enterScope()
 
         #for decorator in t.decorator_list:
         #    print(decorator)
@@ -46,7 +46,7 @@ class ClassWriter(NodeVisitor):
         for stmt in t.body:
             self.codeGenerator.visit(stmt, self)
 
-        self.codeGenerator.output.leave()
+        self.codeGenerator.leaveScope(t)
         self.codeGenerator.output.write(";")
 
         self.codeGenerator.output.flushLastInFile(t.name + ".h")

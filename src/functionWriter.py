@@ -18,13 +18,14 @@ class FunctionWriter(NodeVisitor):
         """  """
         self.codeGenerator.visit(node)
 
+
     def outputMain(self, node):
         self.codeGenerator.output.write("int main(")
         self.visit(node.args)
         self.codeGenerator.output.write(")")
         self.codeGenerator.enterScope()
         self.visit(node.body)
-        self.codeGenerator.leaveScope()
+        self.codeGenerator.leaveScope(node)
 
 
     class ReturnTypeFinder(NodeVisitor):
@@ -64,39 +65,6 @@ class FunctionWriter(NodeVisitor):
             return self.ret
 
 
-    def visit_arguments(self, t):
-        first = True
-        count = 0
-        # normal arguments
-        defaults = [None] * (len(t.args) - len(t.defaults)) + t.defaults
-        for a, d in zip(t.args, defaults):
-            if first:
-                first = False
-            else:
-                self.codeGenerator.output.write(", ")
-            self.codeGenerator.output.write("Type%i " % (count))
-            self.visit(a)
-            count += 1
-            if d:
-                self.codeGenerator.output.write("=")
-                self.visit(d)
-
-        # TODO
-        # varargs
-        if t.vararg:
-            if first:first = False
-            else: self.codeGenerator.output.write(", ")
-            self.codeGenerator.output.write("*")
-            self.codeGenerator.output.write(t.vararg)
-
-        # TODO
-        # kwargs
-        if t.kwarg:
-            if first:first = False
-            else: self.codeGenerator.output.write(", ")
-            self.codeGenerator.output.write("**"+t.kwarg)
-
-
     # TODO
     def visit_FunctionDef(self, t):
 
@@ -122,11 +90,11 @@ class FunctionWriter(NodeVisitor):
         ### output.write body to a temporary buffer
 
         self.codeGenerator.output.stackBuffer()
-        self.codeGenerator.output.enter()
+        self.codeGenerator.enterScope()
 
         self.visit(t.body)
 
-        self.codeGenerator.output.leave()
+        self.codeGenerator.leaveScope(t)
 
         tmpBuffer = self.codeGenerator.output.topPop()
 
