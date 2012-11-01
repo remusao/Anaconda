@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from codeGenerator import CodeGenerator
-from codeFormatter import CodeFormatter
+from outputManager import outputManager as CodeFormatter
 
 import sys
 import ast
@@ -21,6 +21,7 @@ def parse(filename):
     tree = compile(source, filename, "exec", ast.PyCF_ONLY_AST)
 
     formatter = CodeFormatter()
+
     generator = CodeGenerator(formatter)
     generator.visit(tree)
 

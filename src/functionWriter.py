@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from ast import NodeVisitor
+from ast import NodeVisitor, Name
 
 
 class FunctionWriter(NodeVisitor):
@@ -19,10 +19,83 @@ class FunctionWriter(NodeVisitor):
         self.codeGenerator.visit(node)
 
 
+    class ReturnTypeFinder(NodeVisitor):
+
+        def __init__(self, node):
+            self.assignements = []
+            self.visit(node)
+
+        def visit_Assign(self, node):
+            """"""
+            #print(node)
+            for target in node.targets:
+                if isinstance(target, Name):
+                    self.assignements += (target.id, node.value)
+
+
+        def getType(self, returnStmt, visitor):
+            type = 'void'
+            if returnStmt.value:
+                visitor.output.stackBuffer()
+                visitor.visit(returnStmt.value)
+                type = visitor.output.topPop().getvalue()
+            return "decltype(%s)" % (type)
+
+
+
+    class SearchReturn(NodeVisitor):
+
+        def __init__(self, node):
+            self.ret = None
+            self.visit(node)
+
+        def visit_Return(self, node):
+            self.ret = node
+
+        def getReturn(self):
+            return self.ret
+
+
+    def visit_arguments(self, t):
+        first = True
+        count = 0
+        # normal arguments
+        defaults = [None] * (len(t.args) - len(t.defaults)) + t.defaults
+        for a, d in zip(t.args, defaults):
+            if first:
+                first = False
+            else:
+                self.codeGenerator.output.write(", ")
+            self.codeGenerator.output.write("Type%i " % (count))
+            self.visit(a)
+            count += 1
+            if d:
+                self.codeGenerator.output.write("=")
+                self.visit(d)
+
+        # TODO
+        # varargs
+        if t.vararg:
+            if first:first = False
+            else: self.codeGenerator.output.write(", ")
+            self.codeGenerator.output.write("*")
+            self.codeGenerator.output.write(t.vararg)
+
+        # TODO
+        # kwargs
+        if t.kwarg:
+            if first:first = False
+            else: self.codeGenerator.output.write(", ")
+            self.codeGenerator.output.write("**"+t.kwarg)
+
+
     # TODO
     def visit_FunctionDef(self, t):
-        self.codeGenerator.output.write("\n")
-        nbArgs = 0 #len(t.args.args)
+
+        #for decorator in t.decorator_list:
+        #    print(decorator)
+
+        nbArgs = len(t.args.args)
         if nbArgs > 0:
             self.codeGenerator.output.write("template <")
             for e in range(0, nbArgs - 1):
@@ -33,23 +106,27 @@ class FunctionWriter(NodeVisitor):
         self.codeGenerator.visit(t.args)
         self.codeGenerator.output.write(") -> ")
 
-        # Trace the assignements in the function body
-        assignements = []
-
         ### output.write body to a temporary buffer
 
         self.codeGenerator.output.stackBuffer()
-
         self.codeGenerator.output.enter()
+
         for node in t.body:
             self.visit(node)
+
         self.codeGenerator.output.leave()
+
+        tmpBuffer = self.codeGenerator.output.topPop()
 
         ### Finds the return type
         body = {x.__class__.__name__ : x for x in t.body}
-        if "Return" in body:
-            self.codeGenerator.output.write(findReturnType(body["Return"], assignements))
+        returnFinder = self.SearchReturn(t)
+        if returnFinder.getReturn():
+            typeFinder = self.ReturnTypeFinder(t)
+            self.codeGenerator.output.write(
+                typeFinder.getType(returnFinder.getReturn(),
+                                   self.codeGenerator))
         else:
             self.codeGenerator.output.write("void")
 
-        self.codeGenerator.output.mergeLastBuffer
+        self.codeGenerator.output.write(tmpBuffer.getvalue())

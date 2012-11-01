@@ -5,20 +5,26 @@ from sys import stdout
 from io import StringIO
 
 
-class CodeFormatter():
+class outputManager():
     """
     """
 
     def __init__(self, outputStream = stdout):
         """
         """
-        self.f = [outputStream]
+        self.f = [StringIO()]
+        self.outputStream = outputStream
         self._indent = 0
 
 
     def stackBuffer(self):
         self.f.append(StringIO())
 
+
+    def topPop(self):
+        tmp = self.topBuffer()
+        self.popBuffer()
+        return tmp
 
     def popBuffer(self):
         del self.f[-1]
@@ -32,6 +38,10 @@ class CodeFormatter():
         self.f[-2].write(self.f[-1].getvalue())
         self.popBuffer()
 
+    def flushLastInFile(self, fileName):
+        with open(fileName, 'w') as of:
+            of.write(self.f[-1].getvalue())
+            self.popBuffer()
 
     def fill(self, text = ""):
         """
@@ -45,17 +55,16 @@ class CodeFormatter():
 
     def enter(self):
         "Print ':', and increase the indentation."
-        self.topBuffer().write("\n{")
+        self.topBuffer().write("\n%s{" % ("    " * self._indent))
         self._indent += 1
 
     def leave(self):
         "Decrease the indentation level."
-        self.topBuffer().write('\n}\n')
         self._indent -= 1
+        self.topBuffer().write("\n%s}\n" % ("    " * self._indent))
 
 
 
     def flush(self):
-        """
-        """
-        pass
+        for s in self.f:
+            self.outputStream.write(s.getvalue())
