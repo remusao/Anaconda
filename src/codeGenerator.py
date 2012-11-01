@@ -23,6 +23,14 @@ class CodeGenerator(ast.NodeVisitor):
         self.classWriter = ClassWriter(self)
         self.functionWriter = FunctionWriter(self)
 
+
+    def visit(self, node):
+        if isinstance(node, list):
+            for n in node:
+                self.visit(n)
+        else:
+            getattr(self, "visit_%s" % (node.__class__.__name__))(node)
+
     #
     # Dict
     #
@@ -35,26 +43,29 @@ class CodeGenerator(ast.NodeVisitor):
 
     boolop = {ast.And: '&&', ast.Or: '||'}
 
+    cmpops = {"Eq":"==", "NotEq":"!=", "Lt":"<", "LtE":"<=", "Gt":">", "GtE":">=",
+                        "Is":"is", "IsNot":"is not", "In":"in", "NotIn":"not in"}
+
     #           #
     #    MOD    #
     #           #
 
 
     def visit_Module(self, tree):
-        for stmt in tree.body:
-            self.visit(stmt)
+        self.visit(tree.body)
+
 
     def visit_Interactive(self, tree):
-        for expr in tree.body:
-            self.visit(expr)
+        self.visit(tree.body)
+
 
     def visit_Expression(self, tree):
         self.visit(tree.body)
 
     
     def visit_Suite(self, tree):
-        for stmt in tree.body:
-            self.visit(stmt)
+        self.visit(tree.body)
+
 
     #            #
     #    STMT    #
@@ -64,8 +75,10 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_FunctionDef(self, t):
         self.functionWriter.visit(t)
 
+
     def visit_ClassDef(self, t):
         self.classWriter.visit(t)
+
 
     def visit_Return(self, t):
         self.output.fill("return")
@@ -78,8 +91,8 @@ class CodeGenerator(ast.NodeVisitor):
     # TODO
     def visit_Delete(self, t):
         self.output.fill("delete ")
-        for expr in t.targets:
-            self.visit(expr)
+        self.visit(t.targets)
+        self.output.write(";")
 
 
     def visit_Assign(self, t):
@@ -98,6 +111,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.output.write(" " + self.binop[t.op.__class__.__name__] + "= ")
         self.visit(t.value)
 
+
     def visit_For(self, t):
         self.output.fill("for (")
         self.visit(t.target)
@@ -105,8 +119,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.iter)
         self.output.write(")")
         self.output.enter()
-        for node in t.body:
-            self.visit(node)
+        self.visit(t.body)
         self.output.leave()
         #if t.orelse:
         #    self.output.fill("else")
@@ -114,27 +127,27 @@ class CodeGenerator(ast.NodeVisitor):
         #    self.visit(t.orelse)
         #    self.output.leave()
 
+
     def visit_While(self, t):
         self.output.fill("while (")
         self.visit(t.test)
         self.output.write(")")
         self.output.enter()
-        for stmt in t.body:
-            self.visit(stmt)
+        self.visit(t.body)
         self.output.leave()
-        if t.orelse:
-            self.output.fill("else")
-            self.output.enter()
-            self.visit(t.orelse)
-            self.output.leave()
+        #if t.orelse:
+        #    self.output.fill("else")
+        #    self.output.enter()
+        #    self.visit(t.orelse)
+        #    self.output.leave()
+
 
     def visit_If(self, t):
         self.output.fill("if (")
         self.visit(t.test)
         self.output.write(")")
         self.output.enter()
-        for node in t.body:
-            self.visit(node)
+        self.visit(t.body)
         self.output.leave()
 
         # collapse nested ifs into equivalent elifs.
@@ -145,8 +158,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(t.test)
             self.output.write(")")
             self.output.enter()
-            for stmt in t.body:
-                self.visit(stmt)
+            self.visit(t.body)
             self.output.leave()
             del t.orelse[0]
         # final else
@@ -155,6 +167,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.enter()
             self.visit(t.orelse[0])
             self.output.leave()
+
 
     # TODO
     def visit_With(self, t):
@@ -177,13 +190,11 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_Try(self, t):
         self.output.fill("try")
         self.output.enter()
-        for stmt in t.body:
-            self.visit(stmt)
         self.visit(t.body)
         self.output.leave()
 
-        for ex in t.handlers:
-            self.visit(ex)
+        self.visit(t.handlers)
+
 
     def visit_Assert(self, t):
         self.includes.add("cassert")
@@ -193,6 +204,7 @@ class CodeGenerator(ast.NodeVisitor):
         #    self.output.write(", ")
         #    self.visit(t.msg)
         self.output.write(");")
+
 
     def visit_Import(self, t):
         for name in t.names:
@@ -216,8 +228,7 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_Nonlocal(self, tree):
-        for id in tree.names:
-            self.visit(id)
+        self.visit(tree.names)
 
 
     def visit_Expr(self, tree):
@@ -239,7 +250,6 @@ class CodeGenerator(ast.NodeVisitor):
 
     def visit_attributes(self, tree):
         pass
-
 
 
     #            #
@@ -298,6 +308,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.orelse)
         self.output.write(")")
 
+
     # TODO
     def visit_Dict(self, t):
         self.includes.add("unordered_map")
@@ -320,13 +331,13 @@ class CodeGenerator(ast.NodeVisitor):
         #interoutput.leave(lambda: self.output.write(", "), self.visit, t.elts)
         self.output.write("}")
 
+
     # TODO
     def visit_ListComp(self, t):
         self.includes.add("list")
         self.output.write("[")
         self.visit(t.elt)
-        for gen in t.generators:
-            self.visit(gen)
+        self.visit(t.generators)
         self.output.write("]")
 
 
@@ -335,8 +346,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.includes.add("set")
         self.output.write("{")
         self.visit(t.elt)
-        for gen in t.generators:
-            self.visit(gen)
+        self.visit(t.generators)
         self.output.write("}")
 
 
@@ -347,8 +357,7 @@ class CodeGenerator(ast.NodeVisitor):
         self.visit(t.key)
         self.output.write(": ")
         self.visit(t.value)
-        for gen in t.generators:
-            self.visit(gen)
+        self.visit(t.generators)
         self.output.write("}")
 
 
@@ -356,9 +365,9 @@ class CodeGenerator(ast.NodeVisitor):
     def visit_GeneratorExp(self, t):
         self.output.write("(")
         self.visit(t.elt)
-        for gen in t.generators:
-            self.visit(gen)
+        self.visit(t.generators)
         self.output.write(")")
+
 
     # TODO
     def visit_Yield(self, t):
@@ -376,9 +385,6 @@ class CodeGenerator(ast.NodeVisitor):
             self.visit(tree.value)
 
 
-
-    cmpops = {"Eq":"==", "NotEq":"!=", "Lt":"<", "LtE":"<=", "Gt":">", "GtE":">=",
-                        "Is":"is", "IsNot":"is not", "In":"in", "NotIn":"not in"}
     def visit_Compare(self, t):
         self.output.write("(")
         self.visit(t.left)
@@ -386,6 +392,7 @@ class CodeGenerator(ast.NodeVisitor):
             self.output.write(" " + self.cmpops[o.__class__.__name__] + " ")
             self.visit(e)
         self.output.write(")")
+
 
     # TODO
     def visit_Call(self, t):
@@ -410,13 +417,15 @@ class CodeGenerator(ast.NodeVisitor):
             else: comma = True
             self.output.write("**")
             self.visit(t.kwargs)
-        self.output.write(")")
+        self.output.write(");")
+
 
     def visit_Num(self, t):
         repr_n = repr(t.n)
         # Parenthesize negative numbers, to avoid turning (-1)**2 into -1**2.
         if repr_n.startswith("-"):
             self.output.write("(")
+        self.output.write(str(t.n))
         # Substitute overflowing decimal literal for AST infinities.
         #self.output.write(repr_n.replace("inf", INFSTR))
         if repr_n.startswith("-"):
@@ -424,11 +433,6 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_Str(self, tree):
-        # if from __future__ import unicode_literals is in effect,
-        # then we want to output string literals using a 'b' prefix
-        # and unicode literals with no prefix.
-        #if "unicode_literals" not in self.future_imports:
-        #    self.output.write(repr(tree.s))
         if isinstance(tree.s, str):
             self.output.write("b" + repr(tree.s))
         elif isinstance(tree.s, unicode):
@@ -442,6 +446,7 @@ class CodeGenerator(ast.NodeVisitor):
         # tree.s
         pass
 
+
     # slice
     def visit_Ellipsis(self, t):
         self.output.write("...")
@@ -450,6 +455,7 @@ class CodeGenerator(ast.NodeVisitor):
     #############
     #  Assignment Context
     #############
+
 
     def visit_Attribute(self,t):
         self.visit(t.value)

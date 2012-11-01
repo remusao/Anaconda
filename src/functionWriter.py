@@ -111,15 +111,13 @@ class FunctionWriter(NodeVisitor):
         self.codeGenerator.output.stackBuffer()
         self.codeGenerator.output.enter()
 
-        for node in t.body:
-            self.visit(node)
+        self.visit(t.body)
 
         self.codeGenerator.output.leave()
 
         tmpBuffer = self.codeGenerator.output.topPop()
 
         ### Finds the return type
-        body = {x.__class__.__name__ : x for x in t.body}
         returnFinder = self.SearchReturn(t)
         if returnFinder.getReturn():
             typeFinder = self.ReturnTypeFinder(t)
