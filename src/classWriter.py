@@ -16,12 +16,30 @@ class ClassWriter(NodeVisitor):
         self.className = ""
 
 
+    def writeConstructors(self, node):
+        n = node.name
+        # If args
+        if len(node.args.args) > 1:
+            self.codeGenerator.output.fill("%s() = delete;" % (n))
+        else:
+            self.codeGenerator.output.fill("%s() = default;" % (n))
+        # Copy
+        self.codeGenerator.output.fill("%s(const %s&) = default;" % (n, n))
+        self.codeGenerator.output.fill("%s& operator=(const %s&) = default;" % (n, n))
+        # Move
+        self.codeGenerator.output.fill("%s(%s&&) = default;" % (n, n))
+        self.codeGenerator.output.fill("%s& operator=(%s&&) = default;" % (n, n))
+
+
+
+
     def visit_FunctionDef(self, node):
         # Constructor
         if node.name == "__init__":
             node.name = self.className
-            # TODO
-        self.codeGenerator.visit(node)
+            self.writeConstructors(node)
+        else:
+            self.codeGenerator.visit(node)
 
 
 
@@ -32,6 +50,7 @@ class ClassWriter(NodeVisitor):
 
         self.codeGenerator.output.fill("class " + t.name)
         self.codeGenerator.enterScope()
+        self.codeGenerator.output.fill("public:")
 
         #for decorator in t.decorator_list:
         #    print(decorator)
