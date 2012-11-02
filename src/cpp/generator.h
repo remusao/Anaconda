@@ -5,21 +5,34 @@
 # include <functional>
 
 
+class EndOfGenerator
+{
+	public:
+		EndOfGenerator() {}
+};
+
 template <typename Value>
 class GeneratorIterator
 {
 	public:
-	GeneratorIterator() : end_(true) {}
+	GeneratorIterator()
+		: end_(true)
+	{
+	}
+
+	// Move
 	GeneratorIterator(GeneratorIterator&&) = default;
 	GeneratorIterator& operator=(GeneratorIterator&&) = default;
 
-	GeneratorIterator(const std::function<Value (bool&)>& gen)
+	// Copy
+	GeneratorIterator(const GeneratorIterator&) = delete;
+	GeneratorIterator& operator=(const GeneratorIterator&) = delete;
+
+	GeneratorIterator(const std::function<Value ()>& gen)
 		: end_(false),
-		  gen_(gen),
-		  val_(gen_(end_))
+		  gen_(gen)
 	{
-		std::cout << val_ << std::endl;
-		std::cout << end_ << std::endl;
+		++(*this);
 	}
 	
 	bool operator==(const GeneratorIterator& it) const
@@ -34,7 +47,15 @@ class GeneratorIterator
 
 	GeneratorIterator<Value>& operator++()
 	{
-		val_ = gen_(end_);
+		try
+		{
+			val_ = gen_();
+		}
+		catch (...)
+		{
+			end_ = true;
+		}
+
 		return *this;
 	}
 
@@ -45,7 +66,7 @@ class GeneratorIterator
 
 	private:
 		bool end_;
-		std::function<Value (bool&)> gen_;
+		std::function<Value ()> gen_;
 		Value val_;
 };
 
@@ -60,7 +81,7 @@ class Generator
 		Generator(Generator&&) = default;
 		Generator& operator=(Generator&&) = default;
 
-		Generator(const std::function<Value (bool&)>& gen) : gen_(gen) {}
+		Generator(const std::function<Value ()>& gen) : gen_(gen) {}
 
 		// Copy is forbiden
 		Generator(const Generator&) = delete;
@@ -78,7 +99,7 @@ class Generator
 		}
 
 	private:
-		std::function<Value (bool&)> gen_;
+		std::function<Value ()> gen_;
 };
 
 #endif /* ndef GENERATOR_H */

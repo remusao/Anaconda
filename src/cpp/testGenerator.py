@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+def myrange():
+    yield 42
+    yield 1138
+    for i in [1, 2, 3, 4]:
+        yield i
+
 def main():
-    for x in range(0, 1000000, 3):
-        tmp = x
+    for x in myrange():
+        print(x)
 
 main()

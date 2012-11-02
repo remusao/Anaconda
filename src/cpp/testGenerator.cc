@@ -14,16 +14,14 @@ Generator<long int>
 my_range(long int start, long int end, long int step)
 {
 	coroutine c;
-	return Generator<long int>([=, &c](bool& over) mutable -> long int
+	return Generator<long int>([=]() mutable -> long int
 	{
-		over = false;
 		reenter(c)
 		{
-			for (; start < end; ++start)
-				yield;// return start;
-			over = true;
-			yield;
+			for (; start < end; start += step)
+				yield return start;
 		}
+		throw EndOfGenerator();
 	});
 }
 
@@ -31,8 +29,9 @@ my_range(long int start, long int end, long int step)
 int
 main()
 {
-	for (auto x : my_range(0, 10, 1))
-		std::cout << x << std::endl;
+	for (auto x : my_range(0, 1000000000, 42))
+		std::cout << x;
+	std::cout << std::endl;
 
 	return 0;
 }

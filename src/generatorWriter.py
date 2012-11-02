@@ -14,6 +14,17 @@ class GeneratorWriter(NodeVisitor):
     def generic_visit(self, node):
         self.codeGenerator.visit(node)
 
+    class SearchReturn(NodeVisitor):
+
+        def __init__(self, node):
+            self.ret = None
+            self.visit(node)
+
+        def visit_Return(self, node):
+            self.ret = node
+
+        def getReturn(self):
+            return self.ret
 
 
     def visit_FunctionDef(self, t):
@@ -23,13 +34,10 @@ class GeneratorWriter(NodeVisitor):
         # include directives
         self.codeGenerator.includes.add("generator.h")
         self.codeGenerator.includes.add("coroutine.h")
+        self.codeGenerator.includes.add("yield.h")
 
-        # Create the generator class
-        self.codeGenerator.output.fill("class %s" % (name))
-        self.codeGenerator.enterScope()
 
-        # Create constructors
-        self.codeGenerator.output.fill("%s(")
+        self.codeGenerator.output.fill()
         nbArgs = len(t.args.args)
         if nbArgs > 0:
             self.codeGenerator.output.write("template <")
@@ -46,14 +54,25 @@ class GeneratorWriter(NodeVisitor):
         self.codeGenerator.output.stackBuffer()
         self.codeGenerator.enterScope()
 
+
+        self.codeGenerator.output.fill("coroutine c;")
+        self.codeGenerator.output.fill("return Generator<long int>([=]() mutable -> long int")
+
+        self.codeGenerator.enterScope()
+        self.codeGenerator.output.fill("reenter(c)")
+        self.codeGenerator.enterScope()
         self.visit(t.body)
 
+        self.codeGenerator.leaveScope(None, "")
+        self.codeGenerator.output.fill("throw EndOfGenerator();")
+        self.codeGenerator.leaveScope(None, ");")
         self.codeGenerator.leaveScope(t)
 
         tmpBuffer = self.codeGenerator.output.topPop()
 
         ### Finds the return type
         returnFinder = self.SearchReturn(t)
+        self.codeGenerator.output.write("Generator<")
         if returnFinder.getReturn():
             typeFinder = self.ReturnTypeFinder(t)
             self.codeGenerator.output.write(
@@ -61,5 +80,6 @@ class GeneratorWriter(NodeVisitor):
                                    self.codeGenerator))
         else:
             self.codeGenerator.output.write("void")
+        self.codeGenerator.output.write(">")
 
         self.codeGenerator.output.write(tmpBuffer.getvalue())

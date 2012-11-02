@@ -92,6 +92,7 @@ class FunctionWriter(NodeVisitor):
         yieldFinder = self.SearchYield(t)
         if yieldFinder.getYield():
             self.generatorWriter.visit(t)
+            return
 
 
         #for decorator in t.decorator_list:
