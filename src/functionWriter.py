@@ -3,6 +3,7 @@
 
 
 from ast import NodeVisitor, Name
+from generatorWriter import GeneratorWriter
 
 
 class FunctionWriter(NodeVisitor):
@@ -12,6 +13,7 @@ class FunctionWriter(NodeVisitor):
     def __init__(self, codeGenerator):
         """ """
         self.codeGenerator = codeGenerator
+        self.generatorWriter = GeneratorWriter(codeGenerator)
 
 
     def generic_visit(self, node):
@@ -52,6 +54,19 @@ class FunctionWriter(NodeVisitor):
 
 
 
+    class SearchYield(NodeVisitor):
+
+        def __init__(self, node):
+            self.y = None
+            self.visit(node)
+
+        def visit_Yield(self, node):
+            self.y = node
+
+        def getYield(self):
+            return self.y
+
+
     class SearchReturn(NodeVisitor):
 
         def __init__(self, node):
@@ -71,6 +86,13 @@ class FunctionWriter(NodeVisitor):
         if t.name == "main":
             self.outputMain(t)
             return
+
+
+        # Is it a generator ?
+        yieldFinder = self.SearchYield(t)
+        if yieldFinder.getYield():
+            self.generatorWriter.visit(t)
+
 
         #for decorator in t.decorator_list:
         #    print(decorator)
