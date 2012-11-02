@@ -3,3 +3,7 @@
 - Create python Exceptions
 - Finish to implement builtins
 - Implement const vector
+- Empty line between if and else
+- probleme in vector when the type is vector
+- Empty string are cut in two lines
+- need semi colon at the and of with context ?

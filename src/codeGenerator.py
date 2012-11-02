@@ -166,10 +166,12 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_FunctionDef(self, t):
+        self.output.fill()
         self.functionWriter.visit(t)
 
 
     def visit_ClassDef(self, t):
+        self.output.fill()
         self.classWriter.visit(t)
 
 
@@ -271,14 +273,19 @@ class CodeGenerator(ast.NodeVisitor):
 
     # TODO
     def visit_With(self, t):
-        #self.output.fill("with ")
+        self.output.fill("/// With ")
         #self.visit(t.context_expr)
         #if t.optional_vars:
-        #    self.output.write(" as ")
+        #    self.output.write("auto ")
         #    self.visit(t.optional_vars)
-        #self.enterScope()
-        #self.visit(t.body)
-        #self.leaveScope()
+        #    self.output.write(" = ")
+        #self.visit(t.context_expr)
+
+        self.enterScope()
+        self.visit(t.items)
+        self.visit(t.body)
+        self.leaveScope(None, "")
+
         pass
 
 
@@ -331,11 +338,14 @@ class CodeGenerator(ast.NodeVisitor):
 
     # TODO
     def visit_Nonlocal(self, tree):
+        self.output.fill()
         self.visit(tree.names)
 
 
     def visit_Expr(self, tree):
+        self.output.fill()
         self.visit(tree.value)
+        self.output.write(";")
 
 
     def visit_Pass(self, t):
@@ -653,7 +663,7 @@ class CodeGenerator(ast.NodeVisitor):
 
     # TODO
     def visit_ExceptHandler(self, t):
-        self.output.fill("catch (")
+        self.output.write("catch (")
         if not (t.type and t.name):
             self.output.write("...)")
         else:
@@ -733,6 +743,8 @@ class CodeGenerator(ast.NodeVisitor):
 
 
     def visit_withitem(self, tree):
-        self.visit(tree.context_expr)
         if tree.optional_vars:
+            self.output.fill("auto ")
             self.visit(tree.optional_vars)
+            self.output.write(" = ")
+        self.visit(tree.context_expr)
