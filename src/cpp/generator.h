@@ -1,51 +1,71 @@
 #ifndef GENERATOR_H
 # define GENERATOR_H
 
-#include <iostream>
 # include <functional>
 
+# define Generator(NAME, VALUETYPE, PROLOGUE, CONTENT)			\
+template <typename ... Arguments>								\
+auto NAME(const Arguments&... args) -> __Generator<VALUETYPE>	\
+{																\
+    coroutine c;												\
+    PROLOGUE													\
+    return __Generator<VALUETYPE>([=]() mutable -> VALUETYPE	\
+    {															\
+		reenter(c)                                              \
+        {                                                       \
+			CONTENT                                             \
+        }                                                       \
+																\
+        throw EndOfGenerator();                                 \
+    });                                                         \
+}
 
-class EndOfGenerator
+
+
+class __EndOfGenerator
 {
 	public:
-		EndOfGenerator() {}
+		__EndOfGenerator() {}
 };
 
-template <typename Value>
-class GeneratorIterator
+
+template <typename ValueType>
+class __GeneratorIterator
 {
 	public:
-	GeneratorIterator()
+	__GeneratorIterator()
 		: end_(true)
 	{
 	}
 
 	// Move
-	GeneratorIterator(GeneratorIterator&&) = default;
-	GeneratorIterator& operator=(GeneratorIterator&&) = default;
+	__GeneratorIterator(__GeneratorIterator&&) = default;
+	__GeneratorIterator& operator=(__GeneratorIterator&&) = default;
 
 	// Copy
-	GeneratorIterator(const GeneratorIterator&) = delete;
-	GeneratorIterator& operator=(const GeneratorIterator&) = delete;
+	__GeneratorIterator(const __GeneratorIterator&) = delete;
+	__GeneratorIterator& operator=(const __GeneratorIterator&) = delete;
 
-	GeneratorIterator(const std::function<Value ()>& gen)
+	// Normal constructor
+	__GeneratorIterator(const std::function<ValueType ()>& gen)
 		: end_(false),
 		  gen_(gen)
 	{
+		// init the first value
 		++(*this);
 	}
 	
-	bool operator==(const GeneratorIterator& it) const
+	bool operator==(const __GeneratorIterator& it) const
 	{
 		return end_ == it.end_;
 	}
 
-	bool operator!=(const GeneratorIterator& it) const
+	bool operator!=(const __GeneratorIterator& it) const
 	{
 		return end_ != it.end_;
 	}
 
-	GeneratorIterator<Value>& operator++()
+	__GeneratorIterator<ValueType>& operator++()
 	{
 		try
 		{
@@ -59,47 +79,50 @@ class GeneratorIterator
 		return *this;
 	}
 
-	const Value& operator*() const
+	const ValueType& operator*() const
 	{
 		return val_;
 	}
 
 	private:
 		bool end_;
-		std::function<Value ()> gen_;
-		Value val_;
+		std::function<ValueType ()> gen_;
+		ValueType val_;
 };
 
 
-template <typename Value>
-class Generator
+template <typename ValueType>
+class __Generator
 {
 	public:
 		// Must be initialized with an iterator
-		Generator() = delete;
-		~Generator() = default;
-		Generator(Generator&&) = default;
-		Generator& operator=(Generator&&) = default;
+		~__Generator() = default;
+		__Generator(__Generator&&) = default;
+		__Generator& operator=(__Generator&&) = default;
 
-		Generator(const std::function<Value ()>& gen) : gen_(gen) {}
-
-		// Copy is forbiden
-		Generator(const Generator&) = delete;
-		Generator& operator=(const Generator&) = delete;
-
-
-		auto begin() const -> GeneratorIterator<Value> 
+		__Generator(std::function<ValueType ()>&& gen)
+			: gen_(std::move(gen))
 		{
-			return GeneratorIterator<Value>(gen_);
 		}
 
-		auto end() const -> GeneratorIterator<Value> 
+		// Copy is forbiden
+		__Generator() = delete;
+		__Generator(const __Generator&) = delete;
+		__Generator& operator=(const __Generator&) = delete;
+
+
+		auto begin() const -> __GeneratorIterator<ValueType> 
 		{
-			return GeneratorIterator<Value>();
+			return __GeneratorIterator<ValueType>(gen_);
+		}
+
+		auto end() const -> __GeneratorIterator<ValueType> 
+		{
+			return __GeneratorIterator<ValueType>();
 		}
 
 	private:
-		std::function<Value ()> gen_;
+		std::function<ValueType ()> gen_;
 };
 
 #endif /* ndef GENERATOR_H */

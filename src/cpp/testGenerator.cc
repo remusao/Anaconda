@@ -25,6 +25,9 @@ my_range(long int start, long int end, long int step)
 	});
 }
 
+Generator<long int>
+my_range2()
+
 
 int
 main()
