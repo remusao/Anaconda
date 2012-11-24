@@ -1,6 +1,6 @@
 
 from ast import NodeVisitor, Name
-from nodeFinder import NodeFinder
+from treeUtils import *
 
 
 def visit(self, t):
@@ -23,7 +23,7 @@ def visitGenerator(self, tree):
 
     name = t.name
     # Type of the Generator
-    type = findType(NodeFinder().findAll(t, ['Return']))
+    type = findType(self.variablesInScope[-1], NodeFinder().findAll(t, ['Return']), tree)
 
     # include directives
     self.includes.add("generator.h")
@@ -101,9 +101,52 @@ def visitNormal(self, t):
     tmpBuffer = self.output.topPop()
 
     ### Finds the return type
-    self.write(findType(NodeFinder().findAll(t, ['Return'])))
+    self.write('decltype(')
+    type = findType(self.variablesInScope[-1], NodeFinder().findAll(t, ['Return']), t)
+
+    if type:
+        self.visit(type)
+    else:
+        self.write('void')
+    self.write(')')
+
     self.write(tmpBuffer.getvalue())
 
 
-def findType(returns):
-    return 'int'
+
+def findType(scope, returns, tree):
+
+    if len(returns) == 0:
+        return None
+
+    def getMin(l):
+        if l:
+            minReturn, minSize = l[0]
+            for r, s in l:
+                if s < minSize:
+                    minSize = s
+                    minReturn = r
+            return r
+        return None
+
+    size = TreeSize()
+    allInScope = AllInScope()
+
+    l = [(r.value, size(r.value)) for r in returns]
+    okReturns = [(r, s) for (r, s) in l if len(allInScope(r, scope)) == 0]
+    if len(okReturns) != 0:
+        print('In scope')
+        return getMin(okReturns)
+    else:
+        print('Not in scope')
+        minReturn = getMin(l)
+        replacer = ReplaceNode()
+        getDefinition = GetDefinition()
+        while True:
+            res = allInScope(minReturn, scope)
+            if len(res) == 0:
+                break
+            for name in res:
+                definition = getDefinition(tree, name.id)
+                minReturn = replacer(name.id, definition, minReturn)
+        return minReturn

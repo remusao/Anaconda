@@ -27,18 +27,16 @@ class CodeGenerator(ast.NodeVisitor):
     def visit(self, node):
         if isinstance(node, list):
             for n in node:
-                if self.scopeOpener(n):
-                    self.visit(n)
+                self.visit(n)
         else:
             # Try to find the method in target. If the method doesn't exist, we
             # try to find the method in CodeGenerator.
-            if self.scopeOpener(node):
-                if node.__class__.__name__ in self.visitors:
-                    self.visitor[node.__class__.__name__](node)
-                else:
-                    module = __import__(node.__class__.__name__)
-                    module.visit(self, node)
-                    #getattr(, "visit_%s" % (node.__class__.__name__), self.visit)(node)
+            if node.__class__.__name__ in self.visitors:
+                self.visitor[node.__class__.__name__](node)
+            else:
+                module = __import__(node.__class__.__name__)
+                module.visit(self, node)
+                #getattr(, "visit_%s" % (node.__class__.__name__), self.visit)(node)
 
 
     def printIncludes(self):
@@ -63,20 +61,6 @@ class CodeGenerator(ast.NodeVisitor):
                 visit(val)
         elif len(l):
             visit(l[0])
-
-
-    def scopeOpener(self, node):
-        """
-        Makes sure that nothing could be written outside of any class
-        or function. (indentation at 0)
-        """
-        if self.scope > 0:
-            return True
-        else:
-            if node.__class__.__name__ in ["Module", "ClassDef", "FunctionDef"]:
-                self.scope += 1
-                return True
-        return False
 
 
     def fill(self, text = ""):
