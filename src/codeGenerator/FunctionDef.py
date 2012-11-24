@@ -120,6 +120,7 @@ def findType(scope, returns, tree):
         return None
 
     def getMin(l):
+        """ Return the Tree of minimal size """
         if l:
             minReturn, minSize = l[0]
             for r, s in l:
@@ -133,12 +134,14 @@ def findType(scope, returns, tree):
     allInScope = AllInScope()
 
     l = [(r.value, size(r.value)) for r in returns]
+    # Try to find a return statement which use identifiers in the scope
     okReturns = [(r, s) for (r, s) in l if len(allInScope(r, scope)) == 0]
+    # We return the smallest
     if len(okReturns) != 0:
-        print('In scope')
         return getMin(okReturns)
     else:
-        print('Not in scope')
+        # Take the smallest tree and try to replace the node not in the
+        # scope by their definition
         minReturn = getMin(l)
         replacer = ReplaceNode()
         getDefinition = GetDefinition()

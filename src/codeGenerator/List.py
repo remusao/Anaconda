@@ -2,10 +2,13 @@
 def visit(self, t):
     self.includes.add("vector")
 
-    # Find type of the elements
-    self.output.stackBuffer()
-    self.visit(t.elts[0])
-    type = self.output.topPop().getvalue()
+    if len(t.elts) != 0:
+        # Find type of the elements
+        self.output.stackBuffer()
+        self.visit(t.elts[0])
+        type = self.output.topPop().getvalue()
+    else:
+        type = 'double'
 
     self.output.write("std::vector<decltype (%s)>" % (type))
     self.enterScope()
