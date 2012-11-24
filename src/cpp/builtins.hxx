@@ -129,7 +129,7 @@ namespace Builtins
 	namespace
 	{
 		template <typename Object>
-		bool isTrue(const Object& obj) { return obj.size(); }
+		bool isTrue(const Object& obj) { return obj; }
 
 		template <>
 		bool isTrue<int>(const int& obj) { return obj; }
@@ -150,13 +150,13 @@ namespace Builtins
 		bool isTrue<bool>(const bool& obj) { return obj; }
 	};
 
-	template <typename ... Arguments>
+	template <>
 	bool toBool()
 	{
 		return false;
 	}
 
-	template <typename T, typename ... Arguments>
+	template <typename T>
 	bool toBool(const T& obj)
 	{
 		return isTrue(obj);
