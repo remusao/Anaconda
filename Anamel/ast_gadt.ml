@@ -4,35 +4,34 @@
 (*  MOD  *)
 (* ----- *)
 
-
-type modl =
-    | Module of stmt list       (* body *)
-    | Interactive of stmt list  (* body *)
-    | Expression of expr        (* body *)
-    | Suite of stmt list        (* body *)
-
+type _ modl =
+    | EmptyModule
+    | Module        : 'a stmt * 'b modl -> ('a stmt * 'b modl) modl
+    | Interactive   : 'a stmt * 'b modl -> ('a stmt * 'b modl) modl
+    | Expression    : 'a expr -> ('a expr) modl
 
 
 (* ---- *)
 (* STMT *)
 (* ---- *)
 
-and stmt =
-      FunctionDef
+and _ stmt =
+    | EmptyStmt
+    | FunctionDef
         of identifier           (* name *)
         *  arguments            (* arguments *)
         *  stmt list            (* body *)
         *  expr list            (* decorator_list *)
-        *  expr option                (* ? return statement *)
+        *  expr                 (* ? return statement *)
     | ClassDef
         of identifier           (* name *)
         *  expr list            (* bases *)
         *  keyword list         (* keywords *)
-        *  expr option                (* ? starargs *)
-        *  expr option                (* ? kwargs *)
+        *  expr                 (* ? starargs *)
+        *  expr                 (* ? kwargs *)
         *  stmt list            (* body *)
         *  expr list            (* decorator_list *)
-    | Return of expr option           (* ? value *)
+    | Return of expr            (* ? value *)
     | Delete of expr list       (* targets *)
     | Assign
         of expr list            (* targets *)
@@ -62,8 +61,8 @@ and stmt =
         *  stmt list            (* body *)
 
     | Raise
-        of expr option                (* ? exc *)
-        *  expr option                (* ? cause *)
+        of expr                 (* ? exc *)
+        *  expr                 (* ? cause *)
     | Try
         of stmt list            (* body *)
         *  excepthandler list   (* handlers *)
@@ -71,13 +70,13 @@ and stmt =
         *  stmt list            (* finalbody *)
     | Assert
         of expr                 (* test *)
-        * expr option                 (* ?msg *)
+        * expr                  (* ?msg *)
 
     | Import of alias list      (* names *)
     | ImportFrom
-        of identifier option          (* ? module *)
+        of identifier           (* ? module *)
         * alias list            (* names *)
-        * int option                  (* ? level *)
+        * int                   (* ? level *)
 
     | Global of identifier list (* names *)
     | Nonlocal of identifier list (* names *)
@@ -91,8 +90,8 @@ and stmt =
 (* EXPR *)
 (* ---- *)
 
-and expr =
-    | BoolOp
+and _ expr =
+      BoolOp
         of boolop       (* op *)
         *  expr list    (* values *)
     | BinOp
@@ -130,8 +129,8 @@ and expr =
 
 (* -- the grammar constrains where yield expressions can occur *)
 
-    | Yield of expr option     (* ? value *)
-    | YieldFrom of expr option (* ? value *)
+    | Yield of expr     (* ? value *)
+    | YieldFrom of expr (* ? value *)
 
 
 (* -- need sequences for compare to distinguish between *)
@@ -145,8 +144,8 @@ and expr =
         of expr         (* func *)
         *  expr list    (* args *)
         *  keyword list (* keywords *)
-        *  expr option        (* ? starargs *)
-        *  expr option        (* ? kwargs *)
+        *  expr         (* ? starargs *)
+        *  expr         (* ? kwargs *)
     | Num of num        (* (object n) -- a number as a PyObject. *)
     | Str of string     (* s -- need to specify raw, unicode, etc? *)
     | Bytes of int list (* bytes s -- Immutable sequence of integers 0 <= x <= 256 *)
@@ -191,14 +190,16 @@ and expr_context =
 
 and slice =
       Slice
-        of expr option        (* ? lower *)
-        *  expr option        (* ? upper *)
-        *  expr option        (* ? step *)
+        of expr         (* ? lower *)
+        *  expr         (* ? upper *)
+        *  expr         (* ? step *)
     | ExtSlice of slice list (* dims *)
     | Index of expr     (* value *)
 
 
-and boolop = And | Or
+and boolop =
+      And
+    | Or
 
 
 and operator =
@@ -235,21 +236,31 @@ and cmpop =
     | In
     | NotIn
 
+
 (* Primitive types *)
 
 
-and identifier = string
+and identifier = Identifier of string
 
 and num =
-      Int of int
-    | LongInt of int
+    | Int of int
     | Float of float
 
+and arguments =
+    Arguments
+        of arg list     (* args *)
+        *  identifier   (* ? vararg *)
+        *  expr         (* ? varargannotation *)
+        *  arg list     (* kwonlyargs *)
+        *  identifier   (* ? kwarg *)
+        *  expr         (* ? kwargannotation *)
+        *  expr list    (* defaults *)
+        *  expr list    (* kw_defaults *)
 
-and excepthandler =
+and exceptHandler =
     ExceptHandler
-        of expr option        (* ? type *)
-        *  identifier option  (* ? name *)
+        of expr         (* ? type *)
+        *  identifier   (* ? name *)
         *  stmt list    (* body *)
 
 and attributes =
@@ -263,23 +274,12 @@ and comprehension =
         *  expr         (* iter *)
         *  expr list    (* ifs *)
 
-(* -- keyword arguments supplied to call *)
-and arguments =
-    Arguments
-        of arg list             (* args *)
-        *  identifier option    (* ? vararg *)
-        *  expr option          (* ? varargannotation *)
-        *  arg list             (* kwonlyargs *)
-        *  identifier option    (* ? kwarg *)
-        *  expr option          (* ? kwargannotation *)
-        *  expr list            (* defaults *)
-        *  expr list            (* kw_defaults *)
-
 and arg =
     Arg
         of identifier   (* arg *)
-        *  expr option        (* ? annotation *)
+        *  expr         (* ? annotation *)
 
+(* -- keyword arguments supplied to call *)
 
 and keyword =
     Keyword
@@ -291,9 +291,9 @@ and keyword =
 and alias =
     Alias
         of identifier   (* name *)
-        *  identifier option  (* ? asname *)
+        *  identifier   (* ? asname *)
 
 and withitem =
     Withitem
         of expr         (* context_expr *)
-        *  expr option        (* ? optional_vars *)
+        *  expr         (* ? optional_vars *)

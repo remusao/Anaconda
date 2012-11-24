@@ -1,5 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
+
+def visit(self, t):
+    self.output.fill()
+    self.classWriter.visit(t)
 
 
 from ast import NodeVisitor
@@ -33,7 +36,7 @@ class ClassWriter(NodeVisitor):
 
 
 
-    def visit_FunctionDef(self, node):
+    def visit(self, node):
         # Constructor
         if node.name == "__init__":
             node.name = self.className
@@ -43,7 +46,7 @@ class ClassWriter(NodeVisitor):
 
 
 
-    def visit_ClassDef(self, t):
+    def visit(self, t):
         self.codeGenerator.output.stackBuffer()
         self.className = t.name
         self.codeGenerator.output.write("\n")

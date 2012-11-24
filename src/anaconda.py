@@ -29,7 +29,6 @@ def parse(filename):
     formatter.flush()
 
 
-
 def main(args):
     for f in args:
         parse(f)
