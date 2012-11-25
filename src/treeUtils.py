@@ -137,6 +137,11 @@ class GetDefinition(NodeVisitor):
             self.found = True
             self.quit = True
 
+    def visit_For(self, tree):
+        self.visit(tree.target)
+        if self.found:
+            self.res = tree.iter
+
 
     def visit_Assign(self, tree):
         for target in tree.targets:

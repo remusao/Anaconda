@@ -78,6 +78,7 @@ template <typename ValueType>
 class __Generator
 {
 	public:
+		typedef ValueType type;
 		// Must be initialized with an iterator
 		~__Generator() = default;
 		__Generator(__Generator&&) = default;

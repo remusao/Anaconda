@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 def myrange():
-    for i in [1, 2, 3, 4]:
+    for i in range(1, 10, 2):
         yield i
 
 def main():

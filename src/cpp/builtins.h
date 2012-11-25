@@ -4,6 +4,8 @@
 
 # include <string>
 # include <vector>
+# include <cassert>
+# include <iostream>
 # include "coroutine.h"
 # include "yield.h"
 # include "generator.h"
@@ -94,6 +96,7 @@ namespace Builtins
 	//const std::vector<unsigned char> bytes(const Arguments&... args);
 	// TODO : Implements a const vector
 
+
 	/// @func range(stop)
 	/// @func range(start, stop[, step])
 	/// @brief The arguments to the range constructor must be integers (either
@@ -116,6 +119,28 @@ namespace Builtins
 	/// but some features (such as len()) may raise OverflowError.
 	__Generator<long long int> range(long long int stop);
 	__Generator<long long int> range(long long int start, long long int stop, long long int step = 1);
+
+
+	/// @func print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False)
+	//
+	/// Print objects to the stream file, separated by sep and followed by
+	/// end. sep, end and file, if present, must be given as keyword
+	/// arguments.
+	///
+	/// All non-keyword arguments are converted to strings like str() does
+	/// and written to the stream, separated by sep and followed by end.
+	/// Both sep and end must be strings; they can also be None, which
+	/// means to use the default values. If no objects are given, print()
+	/// will just write end.
+	///
+	/// The file argument must be an object with a write(string)
+	/// method; if it is not present or None, sys.stdout will be used.
+	/// Whether output is buffered is usually determined by file, but
+	/// if the flush keyword argument is true, the stream is forcibly
+	/// flushed.
+	template <typename ...Arguments>
+	void print(const Arguments&... args);
+
 /*
 		__import__()
 		callable()
@@ -159,7 +184,6 @@ namespace Builtins
 		open()
 		ord()
 		pow()
-		print()
 		property()
 		repr()
 		reversed()

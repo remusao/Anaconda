@@ -5,7 +5,7 @@ from treeUtils import *
 
 def visit(self, t):
     """ Visit the FunctionDef according to its kind """
-    self.fill
+    self.variablesInScope[-1].add(t.name)
 
     if isGenerator(self, t):
         visitGenerator(self, t)
@@ -81,9 +81,10 @@ def visitGenerator(self, t):
     self.fill("%s& operator=(%s&&) = default;" % (fname, fname))
 
     self.fill("%s(" % fname)
-    self.write("const T%s %s" % (0, args[0]))
-    for i, j in enumerate(args[1:]):
-        self.write(", const T%s %s" % (i, j))
+    if len(args) > 0:
+        self.write("const T%s %s" % (0, args[0]))
+        for i, j in enumerate(args[1:]):
+            self.write(", const T%s %s" % (i, j))
     self.write(")")
     self.enterScope()
     for arg in args:
@@ -175,7 +176,7 @@ def findType(scope, returns, tree):
         replacer = ReplaceNode()
         getDefinition = GetDefinition()
         while True:
-            res = allInScope(minReturn, scope)
+            res = [x for x in allInScope(minReturn, scope) if isinstance(x, ast.Name)]
             if len(res) == 0:
                 break
             for name in res:

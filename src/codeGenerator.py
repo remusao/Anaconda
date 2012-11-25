@@ -18,8 +18,8 @@ class CodeGenerator(ast.NodeVisitor):
         """
         sys.path.append("codeGenerator")
         self.scope = 0
-        self.variablesInScope = [set([])]
-        self.includes = set([])
+        self.variablesInScope = [set(['range'])]
+        self.includes = set(['builtins.h'])
         self.output = codeFormatter
         self.visitors = {}
 

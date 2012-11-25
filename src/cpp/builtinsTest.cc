@@ -56,7 +56,7 @@ main()
 	// byteArray
 
 	// range
-	for (auto i : Builtins::range(42, 100, 4))
+	for (auto i : Builtins::range(100, 42, 4))
 		std::cout << i << std::endl;
 }
 
