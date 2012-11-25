@@ -62,6 +62,11 @@ class CodeGenerator(ast.NodeVisitor):
         elif len(l):
             visit(l[0])
 
+    def getStr(self, tree):
+        self.output.stackBuffer()
+        self.visit(tree)
+        return self.output.topPop().getvalue()
+
 
     def fill(self, text = ""):
         self.output.fill(text)

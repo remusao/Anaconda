@@ -18,12 +18,12 @@ def isGenerator(self, tree):
     return NodeFinder().findFirst(tree, ['Yield'])
 
 
-def visitGenerator(self, tree):
-    self.write('// Generator')
+def visitGenerator(self, t):
 
-    name = t.name
-    # Type of the Generator
-    type = findType(self.variablesInScope[-1], NodeFinder().findAll(t, ['Return']), tree)
+    name = t.name               # name of the generator
+    fname = name + "Functor"    # name of the functor
+
+
 
     # include directives
     self.includes.add("generator.h")
@@ -31,44 +31,78 @@ def visitGenerator(self, tree):
     self.includes.add("yield.h")
 
 
-    self.fill()
+    self.write('\n')
+
+    args = []
     nbArgs = len(t.args.args)
     if nbArgs > 0:
         self.write("template <")
         for e in range(0, nbArgs - 1):
-            self.write("typename Type%i" % (e))
+            args.append(t.args.args[e].arg)
+            self.write("typename T%i" % (e))
             self.write(", ")
-        self.write("typename Type%i>" % (nbArgs - 1))
+        args.append(t.args.args[nbArgs - 1].arg)
+        self.write("typename T%i>" % (nbArgs - 1))
     self.fill("auto " + t.name + "(")
     self.visit(t.args)
-    self.write(") -> ")
+
+    # Type of the Generator
+    type = findType(self.variablesInScope[-1], NodeFinder().findAll(t, ['Yield']), t)
+    type = ('decltype(%s)' % (self.getStr(type))) if type else 'void'
+    genType = "__Generator<%s>" % type
+
+    self.write(") -> " + genType)
 
     ### write body to a temporary buffer
 
-    self.output.stackBuffer()
     self.enterScope()
 
-
-    self.fill("coroutine c;")
-    self.fill("return Generator<long int>([=]() mutable -> long int")
-
+    self.fill("struct " + fname)
     self.enterScope()
-    self.fill("reenter(c)")
+
+    for i, j in enumerate(args):
+        self.fill("T%s %s;" % (i, j))
+    self.fill("coroutine __coroutine;")
+    # Search all the local variables in the functor to
+    # forward-declare them
+    # TODO
+
+    self.write('\n')
+
+    # Delete constructors and operator=
+    self.fill("%s() = delete;" % (fname))
+    # TODO : Find a solution to avoid using copy constructor with std::function
+    self.fill("%s(const %s&) = default;" % (fname, fname))
+    self.fill("%s& operator=(const %s&) = delete;" % (fname, fname))
+    self.write('\n')
+
+    # Declare the constructor
+    self.fill("%s(%s&&) = default;" % (fname, fname))
+    self.fill("%s& operator=(%s&&) = default;" % (fname, fname))
+
+    self.fill("%s(" % fname)
+    self.write("const T%s %s" % (0, args[0]))
+    for i, j in enumerate(args[1:]):
+        self.write(", const T%s %s" % (i, j))
+    self.write(")")
+    self.enterScope()
+    for arg in args:
+        self.fill("this->%s = %s;" % (arg, arg))
+    self.leaveScope(None, "")
+
+    self.write('\n')
+    self.fill("%s operator()()" % type)
+    self.enterScope()
+    self.fill("reenter(this->__coroutine)")
     self.enterScope()
     self.visit(t.body)
-
     self.leaveScope(None, "")
-    self.fill("throw EndOfGenerator();")
-    self.leaveScope(None, ");")
-    self.leaveScope(t)
+    self.fill("throw __EndOfGenerator();")
+    self.leaveScope(None, "")
+    self.leaveScope(None, ";")
 
-    tmpBuffer = self.output.topPop()
-
-    ### Finds the return type
-    self.write("Generator<")
-    self.write(">")
-
-    self.write(tmpBuffer.getvalue())
+    self.fill("return __Generator<%s>(%s(%s));" % (type, fname, ', '.join(args)))
+    self.leaveScope()
 
 
 
@@ -77,40 +111,35 @@ def visitNormal(self, t):
     #for decorator in t.decorator_list:
     #    print(decorator)
 
-    self.fill()
+
+    #if type:
+    #    type = self.getStr(type)
+    #else:
+    #    type = 'void'
+
+
+    self.write('\n')
     nbArgs = len(t.args.args)
     if nbArgs > 0:
         self.write("template <")
         for e in range(0, nbArgs - 1):
-            self.write("typename Type%i" % (e))
+            self.write("typename T%i" % (e))
             self.write(", ")
-        self.write("typename Type%i>" % (nbArgs - 1))
+        self.write("typename T%i>" % (nbArgs - 1))
     self.fill("auto " + t.name + "(")
     self.visit(t.args)
-    self.write(") -> ")
-
-    ### write body to a temporary buffer
-
-    self.output.stackBuffer()
-    self.enterScope()
-
-    self.visit(t.body)
-
-    self.leaveScope(t)
-
-    tmpBuffer = self.output.topPop()
 
     ### Finds the return type
-    self.write('decltype(')
     type = findType(self.variablesInScope[-1], NodeFinder().findAll(t, ['Return']), t)
+    type = ('decltype(%s)' % self.getStr(type)) if type else 'void'
 
-    if type:
-        self.visit(type)
-    else:
-        self.write('void')
-    self.write(')')
+    self.write(") -> %s" % type)
 
-    self.write(tmpBuffer.getvalue())
+    # Output body
+    self.enterScope()
+    self.visit(t.body)
+    self.leaveScope(t)
+
 
 
 

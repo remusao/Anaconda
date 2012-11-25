@@ -3,25 +3,6 @@
 
 # include <functional>
 
-# define Generator(NAME, VALUETYPE, PROLOGUE, CONTENT)			\
-template <typename ... Arguments>								\
-auto NAME(const Arguments&... args) -> __Generator<VALUETYPE>	\
-{																\
-    coroutine c;												\
-    PROLOGUE													\
-    return __Generator<VALUETYPE>([=]() mutable -> VALUETYPE	\
-    {															\
-		reenter(c)                                              \
-        {                                                       \
-			CONTENT                                             \
-        }                                                       \
-																\
-        throw EndOfGenerator();                                 \
-    });                                                         \
-}
-
-
-
 class __EndOfGenerator
 {
 	public:
@@ -34,7 +15,8 @@ class __GeneratorIterator
 {
 	public:
 	__GeneratorIterator()
-		: end_(true)
+		: end_(true),
+		  gen_(*((std::function<ValueType ()>*)(0)))
 	{
 	}
 
@@ -86,7 +68,7 @@ class __GeneratorIterator
 
 	private:
 		bool end_;
-		std::function<ValueType ()> gen_;
+		const std::function<ValueType ()>& gen_;
 		ValueType val_;
 };
 
@@ -109,14 +91,16 @@ class __Generator
 		__Generator() = delete;
 		__Generator(const __Generator&) = delete;
 		__Generator& operator=(const __Generator&) = delete;
+		__Generator(const std::function<ValueType ()>&) = delete
 
-
-		auto begin() const -> __GeneratorIterator<ValueType> 
+		__GeneratorIterator<ValueType> 
+		begin() const
 		{
 			return __GeneratorIterator<ValueType>(gen_);
 		}
 
-		auto end() const -> __GeneratorIterator<ValueType> 
+		__GeneratorIterator<ValueType> 
+		end() const
 		{
 			return __GeneratorIterator<ValueType>();
 		}

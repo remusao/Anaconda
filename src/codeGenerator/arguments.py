@@ -10,7 +10,7 @@ def visit(self, t):
             first = False
         else:
             self.output.write(", ")
-        self.output.write("Type%i " % (count))
+        self.output.write("T%i " % (count))
         self.variablesInScope[-1].add(a.arg)
         self.visit(a)
         count += 1
