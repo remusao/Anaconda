@@ -54,5 +54,9 @@ main()
 	assert(Builtins::toBool(false) == false);
 
 	// byteArray
+
+	// range
+	for (auto i : Builtins::range(42, 100, 4))
+		std::cout << i << std::endl;
 }
 

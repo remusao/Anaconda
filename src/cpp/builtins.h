@@ -1,8 +1,12 @@
+#pragma once
 #ifndef BUILTINS_H
 # define BUILTINS_H
 
 # include <string>
 # include <vector>
+# include "coroutine.h"
+# include "yield.h"
+# include "generator.h"
 
 
 namespace Builtins
@@ -89,6 +93,29 @@ namespace Builtins
 	//template <typename ... Arguments>
 	//const std::vector<unsigned char> bytes(const Arguments&... args);
 	// TODO : Implements a const vector
+
+	/// @func range(stop)
+	/// @func range(start, stop[, step])
+	/// @brief The arguments to the range constructor must be integers (either
+	/// built-in int or any object that implements the __index__ special method).
+	/// If the step argument is omitted, it defaults to 1. If the start argument
+	/// is omitted, it defaults to 0. If step is zero, ValueError is raised.
+	///
+	/// For a positive step, the contents of a range r are determined by the
+	/// formula r[i] = start + step*i where i >= 0 and r[i] < stop.
+	///
+	/// For a negative step, the contents of the range are still determined by the
+	/// formula r[i] = start + step*i, but the constraints are i >= 0 and r[i] >
+	/// stop.
+	///
+	/// A range object will be empty if r[0] does not meant the value constraint.
+	/// Ranges do support negative indices, but these are interpreted as indexing
+	/// from the end of the sequence determined by the positive indices.
+	///
+	/// Ranges containing absolute values larger than sys.maxsize are permitted
+	/// but some features (such as len()) may raise OverflowError.
+	__Generator<long long int> range(long long int stop);
+	__Generator<long long int> range(long long int start, long long int stop, long long int step = 1);
 /*
 		__import__()
 		callable()
@@ -134,7 +161,6 @@ namespace Builtins
 		pow()
 		print()
 		property()
-		range()
 		repr()
 		reversed()
 		round()

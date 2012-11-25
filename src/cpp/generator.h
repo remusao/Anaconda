@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GENERATOR_H
 # define GENERATOR_H
 
@@ -91,7 +92,6 @@ class __Generator
 		__Generator() = delete;
 		__Generator(const __Generator&) = delete;
 		__Generator& operator=(const __Generator&) = delete;
-		__Generator(const std::function<ValueType ()>&) = delete
 
 		__GeneratorIterator<ValueType> 
 		begin() const

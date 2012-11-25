@@ -213,4 +213,51 @@ namespace Builtins
 	{
 		return std::vector<unsigned char>();
 	}*/
+
+
+	/////////////
+	/// range ///
+	/////////////
+
+	__Generator<long long int> range(long long int start, long long int stop, long long int step)
+	{
+		// formula r[i] = start + step*i where i >= 0 and r[i] < stop.
+		struct RangeFunctor
+		{
+		private:
+			long long int accu_;
+			long long int start_;
+			long long int stop_;
+			long long int step_;
+			coroutine __coroutine;
+
+		public:
+			RangeFunctor() = delete;
+			RangeFunctor(const RangeFunctor&) = default;
+			RangeFunctor& operator=(const RangeFunctor&) = delete;
+
+			RangeFunctor(RangeFunctor&&) = default;
+			RangeFunctor& operator=(RangeFunctor&&) = default;
+			RangeFunctor(long long int start, long long int  stop, long long int step)
+				: accu_(start), start_(start), stop_(stop), step_(step)
+			{
+			}
+
+			long long int operator()()
+			{
+				reenter(this->__coroutine)
+				{
+					for (; accu_ < stop_; accu_ += step_)
+						yield return accu_;
+				}
+				throw __EndOfGenerator();
+			}
+		};
+		return __Generator<long long int>(RangeFunctor(start, stop, step));
+	}
+
+	__Generator<long long int> range(long long int stop)
+	{
+		return range(0, stop, 1);
+	}
 };
